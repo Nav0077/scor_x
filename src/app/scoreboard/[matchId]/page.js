@@ -4,6 +4,23 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const BallChip = ({ val }) => {
+  const cls =
+    val === 'W' ? 'bg-red-600 border-red-500' :
+    val === '4' ? 'bg-blue-600 border-blue-400' :
+    val === '6' ? 'bg-purple-600 border-purple-400' :
+    val?.includes('Wd') ? 'bg-yellow-600 border-yellow-400' :
+    val?.includes('Nb') ? 'bg-orange-600 border-orange-400' :
+    val === '•' ? 'bg-slate-300 border-slate-400' :
+    'bg-slate-600 border-slate-500';
+  
+  return (
+    <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-white text-[10px] font-black shadow-lg ${cls}`}>
+      {val}
+    </div>
+  );
+};
+
 export default function ScoreboardOverlayPage() {
   const { matchId } = useParams();
   const searchParams = useSearchParams();
@@ -14,11 +31,13 @@ export default function ScoreboardOverlayPage() {
   const [innings, setInnings] = useState(null);
   const [batsmen, setBatsmen] = useState([]);
   const [bowler, setBowler] = useState(null);
+  const [currentOver, setCurrentOver] = useState([]);
+  const [event, setEvent] = useState(null);
+  
   // State for other broadcasts
   const [matchInfoVisible, setMatchInfoVisible] = useState(false);
   const [playing11Team, setPlaying11Team] = useState(null);
   const [playing11Players, setPlaying11Players] = useState([]);
-  const [event, setEvent] = useState(null);
   const [visibility, setVisibility] = useState({ batsmen: true, score: true, bowler: true });
 
   useEffect(() => {
@@ -32,16 +51,6 @@ export default function ScoreboardOverlayPage() {
       )
       .on('postgres_changes', { event: '*', schema: 'public', table: 'innings', filter: `match_id=eq.${matchId}` },
         () => loadData()
-      )
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'balls', filter: `match_id=eq.${matchId}` },
-        (payload) => {
-          if (payload.new) {
-             const b = payload.new;
-             if (b.is_six) triggerEvent('SIX');
-             else if (b.is_boundary) triggerEvent('FOUR');
-             else if (b.is_wicket) triggerEvent('WICKET');
-          }
-        }
       )
       .on('postgres_changes', { event: '*', schema: 'public', table: 'batting_scorecard', filter: `match_id=eq.${matchId}` },
         () => loadBattingBowling()
@@ -83,17 +92,18 @@ export default function ScoreboardOverlayPage() {
       })
       .on('broadcast', { event: 'SCORE_UPDATE' }, (payload) => {
         const data = payload.payload;
-        // Update Innings state
+        
+        // Update Innings state instantly from broadcast
         setInnings(prev => ({
            ...prev,
            total_score: data.score,
            total_wickets: data.wickets,
-           total_overs: data.overs,
+           total_overs: String(data.overs),
            total_extras: data.extras
         }));
         
-        // Update local team/innings CRR if needed
-        // The display uses parseFloat(innings.total_overs) so we're good
+        // Update current over dots
+        if (data.currentOver) setCurrentOver(data.currentOver);
         
         // Update Batsmen
         const newBatsmen = [];
@@ -103,7 +113,10 @@ export default function ScoreboardOverlayPage() {
             is_striker: true, 
             player_name: data.striker.name, 
             runs_scored: data.striker.runs, 
-            balls_faced: data.striker.balls 
+            balls_faced: data.striker.balls,
+            fours: data.striker.fours,
+            sixes: data.striker.sixes,
+            strike_rate: data.striker.strikeRate
           });
         }
         if (data.nonStriker) {
@@ -112,7 +125,10 @@ export default function ScoreboardOverlayPage() {
             is_non_striker: true, 
             player_name: data.nonStriker.name, 
             runs_scored: data.nonStriker.runs, 
-            balls_faced: data.nonStriker.balls 
+            balls_faced: data.nonStriker.balls,
+            fours: data.nonStriker.fours,
+            sixes: data.nonStriker.sixes,
+            strike_rate: data.nonStriker.strikeRate
           });
         }
         setBatsmen(newBatsmen);
@@ -125,7 +141,8 @@ export default function ScoreboardOverlayPage() {
             wickets_taken: data.bowler.wickets, 
             runs_conceded: data.bowler.runs,
             overs_bowled: data.bowler.overs,
-            economy_rate: data.bowler.economy
+            economy_rate: data.bowler.economy,
+            maidens: data.bowler.maidens || 0
           });
         }
       })
@@ -175,15 +192,20 @@ export default function ScoreboardOverlayPage() {
   const target     = innings.target;
   const score      = innings.total_score || 0;
   const wickets    = innings.total_wickets || 0;
-  const overs      = innings.total_overs || 0;
-  const crr        = innings.total_overs && parseFloat(innings.total_overs) > 0
-    ? ((score / parseFloat(innings.total_overs))).toFixed(2) : '0.00';
+  const overs      = String(innings.total_overs || '0.0');
+  
+  // Mathematically correct CRR calculation
+  const oversParts = overs.split('.');
+  const overNum = parseInt(oversParts[0]) || 0;
+  const ballNum = parseInt(oversParts[1]) || 0;
+  const totalLegalBalls = (overNum * 6) + ballNum;
+  const crr = totalLegalBalls > 0 ? ((score / totalLegalBalls) * 6).toFixed(2) : '0.00';
 
   const battingTeam = match.team1_id === innings.batting_team_id ? match.team1 : match.team2;
   const bowlingTeam = match.team1_id === innings.bowling_team_id ? match.team1 : match.team2;
 
   // Calculate required
-  const ballsLeft = Math.max(0, (match.overs * 6) - (Math.floor(parseFloat(overs)) * 6 + Math.round((parseFloat(overs) % 1) * 10)));
+  const ballsLeft = Math.max(0, (match.overs * 6) - totalLegalBalls);
   const runsNeeded = target ? Math.max(0, target - score) : null;
 
   return (
@@ -193,7 +215,7 @@ export default function ScoreboardOverlayPage() {
         body, html { background: transparent !important; }
         .clip-left { clip-path: polygon(0 0, 92% 0, 100% 100%, 0 100%); }
         .clip-right { clip-path: polygon(8% 0, 100% 0, 100% 100%, 0 100%); }
-        .shadow-tv { box-shadow: 0 15px 35px rgba(0,0,0,0.5); }
+        .shadow-tv { box-shadow: 0 15px 35px rgba(0,0,0,0.4); }
         .glass { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.4); }
       `}} />
 
@@ -228,12 +250,12 @@ export default function ScoreboardOverlayPage() {
       >
         <div className="absolute -top-10 left-6 flex items-center gap-2 bg-black/40 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-           <span className="text-[10px] font-black text-white/80 uppercase tracking-widest">Live Sync Alpha</span>
+           <span className="text-[10px] font-black text-white/80 uppercase tracking-widest">Live Sync Master</span>
         </div>
         <div className="flex items-stretch h-20 bg-gradient-to-b from-slate-50 to-slate-200 rounded-lg overflow-hidden border border-white shadow-inner">
           
           {/* LEFT: Batting Team */}
-          <div className="flex-shrink-0 w-48 bg-gradient-to-b from-sky-600 to-sky-800 flex items-center px-4 clip-left z-10">
+          <div className="flex-shrink-0 w-48 bg-gradient-to-b from-slate-800 to-black flex items-center px-4 clip-left z-10">
             <div className="flex items-center gap-3">
               {battingTeam?.logo_url ? (
                  <img src={battingTeam.logo_url} className="w-12 h-12 rounded-full border-2 border-white/90 bg-white shadow-lg object-contain" alt="logo" />
@@ -243,16 +265,17 @@ export default function ScoreboardOverlayPage() {
                  </div>
               )}
               <span className="text-white text-3xl font-black tracking-widest uppercase drop-shadow-md">
-                {battingTeam?.short_name || 'IND'}
+                {battingTeam?.short_name || 'BAT'}
               </span>
             </div>
           </div>
 
-          {/* MIDDLE LEFT: Batsmen Stats & Match Info */}
+          {/* MIDDLE LEFT: Batsmen Stats */}
           <div className="flex-1 flex flex-col justify-center px-6">
-            <AnimatePresence>
+            <AnimatePresence mode="wait">
               {visibility.batsmen && (
                 <motion.div
+                  key="batsmen-ui"
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
@@ -265,7 +288,7 @@ export default function ScoreboardOverlayPage() {
                         {striker?.runs_scored||0} <span className="font-medium text-slate-500 text-sm">({striker?.balls_faced||0})</span>
                       </span>
                     </div>
-                    {target && <div className="text-rose-700 mr-12 tracking-wide text-sm font-black italic">TARGET {target}</div>}
+                    {target && <div className="text-rose-700 mr-12 tracking-wide text-xs font-black italic">TARGET {target}</div>}
                   </div>
                   <div className="flex justify-between items-center text-[16px] font-bold text-slate-500">
                     <div className="flex gap-3">
@@ -274,7 +297,7 @@ export default function ScoreboardOverlayPage() {
                         {nonStriker?.runs_scored||0} <span className="font-medium text-slate-400 text-sm">({nonStriker?.balls_faced||0})</span>
                       </span>
                     </div>
-                    <div className="mr-12 tracking-wide text-xs uppercase font-bold text-slate-400">CRR <span className="text-slate-700 font-black">{crr}</span></div>
+                    <div className="mr-12 tracking-wide text-[10px] uppercase font-bold text-slate-400">CRR <span className="text-slate-700 font-black">{crr}</span></div>
                   </div>
                 </motion.div>
               )}
@@ -285,23 +308,34 @@ export default function ScoreboardOverlayPage() {
           <AnimatePresence>
             {visibility.score && (
               <motion.div
+                key="score-block"
                 initial={{ opacity: 0, scale: 0.8, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.8, y: 20 }}
-                className="absolute left-1/2 -translate-x-1/2 -top-8 w-[280px] z-20"
+                className="absolute left-1/2 -translate-x-1/2 -top-10 w-[320px] z-20"
               >
-                <div className="bg-white rounded-2xl shadow-[0_15px_30px_rgba(0,0,0,0.6)] border-2 border-slate-200 overflow-hidden">
-                  <div className="flex justify-center items-center divide-x divide-slate-200 py-2 px-3">
-                    <div className="px-6 text-[48px] font-black text-blue-700 tracking-tighter leading-none">
+                <div className="bg-white rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.5)] border-2 border-slate-200 overflow-hidden">
+                  <div className="flex justify-center items-center divide-x divide-slate-100 py-2.5 px-3">
+                    <div className="px-6 text-[52px] font-black text-blue-800 tracking-tighter leading-none">
                       {score}<span className="text-[36px] text-blue-500">-{wickets}</span>
                     </div>
                     <div className="px-6 text-3xl font-black text-slate-600 leading-none">
                       {overs}
                     </div>
                   </div>
+                  
+                  {/* OVER-BY-OVER BALL DOTS */}
+                  <div className="bg-slate-50 py-1.5 flex justify-center gap-1 border-t border-slate-100">
+                     {currentOver.length > 0 ? currentOver.map((b, i) => (
+                       <div key={i} className={`w-3 h-3 rounded-full ${b==='W'?'bg-red-500':b==='6'?'bg-purple-500':b==='4'?'bg-blue-500':'bg-slate-300'}`} />
+                     )) : (
+                       <div className="text-[9px] uppercase font-black text-slate-400 tracking-widest">Over starting</div>
+                     )}
+                  </div>
+
                   {target && (
-                    <div className="bg-slate-900 py-1.5 text-center text-[12px] text-white font-black uppercase tracking-widest border-t border-white/10">
-                      NEED <b className="text-amber-400 text-[14px] mx-1">{runsNeeded}</b> RUNS IN <b className="text-amber-400 text-[14px] mx-1">{ballsLeft}</b> BALLS
+                    <div className="bg-slate-900 py-1.5 text-center text-[11px] text-white font-black uppercase tracking-[0.15em] border-t border-white/10">
+                      NEED <b className="text-amber-400 mx-1">{runsNeeded}</b> RUNS IN <b className="text-amber-400 mx-1">{ballsLeft}</b> BALLS
                     </div>
                   )}
                 </div>
@@ -310,25 +344,26 @@ export default function ScoreboardOverlayPage() {
           </AnimatePresence>
 
           {/* MIDDLE RIGHT: Bowler */}
-          <div className="flex-1 flex flex-col justify-center px-6 items-end pl-[160px]">
-             <AnimatePresence>
+          <div className="flex-1 flex flex-col justify-center px-6 items-end pl-[180px]">
+             <AnimatePresence mode="wait">
                {visibility.bowler && (
                  <motion.div
+                   key="bowler-ui"
                    initial={{ opacity: 0, x: 20 }}
                    animate={{ opacity: 1, x: 0 }}
                    exit={{ opacity: 0, x: 20 }}
                    className="w-full"
                  >
                    <div className="flex gap-4 items-center text-[16px] font-bold text-slate-800 w-full justify-between">
-                      <span className="text-rose-700 w-36 truncate font-black uppercase tracking-wider text-left">{bowler?.player_name||'Bowler'}</span>
+                      <span className="text-blue-700 w-36 truncate font-black uppercase tracking-wider text-left">{bowler?.player_name||'Bowler'}</span>
                       <span className="text-slate-900 font-extrabold text-right">
                         {bowler?.wickets_taken||0}-{bowler?.runs_conceded||0} <span className="font-medium text-slate-400 text-sm">({bowler?.economy_rate||'0.00'})</span>
                       </span>
                    </div>
                    <div className="flex gap-4 items-center text-sm font-bold text-slate-400 w-full justify-between mt-1 tracking-widest">
-                      <span className="text-[10px] uppercase font-black text-slate-400">Total Overs</span>
-                      <div className="flex gap-1 justify-end font-mono text-[15px] text-slate-800 font-black">
-                         {bowler?.overs_bowled || '0.0'}
+                      <span className="text-[10px] uppercase font-black text-slate-400">Overs & Maidens</span>
+                      <div className="flex gap-2 justify-end font-mono text-[14px] text-slate-800 font-black">
+                         {bowler?.overs_bowled || '0.0'} <span className="text-slate-400 text-[10px] font-sans">M: {bowler?.maidens || 0}</span>
                       </div>
                    </div>
                  </motion.div>
