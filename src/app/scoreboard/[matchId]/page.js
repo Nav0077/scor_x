@@ -176,11 +176,23 @@ export default function ScoreboardOverlayPage() {
   const loadBattingBowling = async () => {
     const { data: bsc } = await supabase.from('batting_scorecard').select('*, player:players(name)')
       .eq('match_id', matchId).or('is_striker.eq.true,is_non_striker.eq.true');
-    setBatsmen(bsc || []);
+    
+    if (bsc) {
+      setBatsmen(bsc.map(b => ({
+        ...b,
+        player_name: b.player_name || b.player?.name || 'Batsman'
+      })));
+    }
 
     const { data: bwl } = await supabase.from('bowling_scorecard').select('*, player:players(name)')
       .eq('match_id', matchId).eq('is_current_bowler', true).single();
-    setBowler(bwl);
+    
+    if (bwl) {
+      setBowler({
+        ...bwl,
+        player_name: bwl.player_name || bwl.player?.name || 'Bowler'
+      });
+    }
   };
 
   const triggerEvent = (ev) => {
@@ -286,7 +298,14 @@ export default function ScoreboardOverlayPage() {
       </AnimatePresence>
 
       {/* ── MAIN SCOREBOARD BAR (BOTTOM) ── */}
-      <div className="fixed bottom-6 sm:bottom-12 left-1/2 -translate-x-1/2 z-40 origin-bottom scale-[0.3] min-[420px]:scale-[0.4] sm:scale-[0.55] md:scale-[0.7] lg:scale-[0.85] xl:scale-100 transition-transform duration-500">
+      <AnimatePresence>
+        {(!playing11Team && !matchInfoVisible) && (
+          <motion.div 
+            initial={{ opacity: 0, y: 100 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            exit={{ opacity: 0, y: 100 }}
+            className="fixed bottom-6 sm:bottom-12 left-1/2 -translate-x-1/2 z-40 origin-bottom scale-[0.3] min-[420px]:scale-[0.4] sm:scale-[0.55] md:scale-[0.7] lg:scale-[0.9] min-[1200px]:scale-100 transition-all duration-500"
+          >
         
         {/* Partnership / Recent Balls Small Badge */}
         <AnimatePresence>
@@ -341,7 +360,7 @@ export default function ScoreboardOverlayPage() {
                   <div className="flex justify-between items-end">
                     <div className="flex items-center gap-3">
                        <span className={`w-2 h-2 rounded-full ${striker ? 'bg-green-500 animate-pulse outline outline-4 outline-green-500/20' : ''}`} />
-                       <span className="text-2xl font-outfit font-black text-slate-900 tracking-tight max-w-[200px] truncate uppercase">{striker?.player_name || 'Batsman 1'}</span>
+                       <span className="text-2xl font-outfit font-black text-slate-900 tracking-tight max-w-[200px] truncate uppercase">{striker?.player_name || 'Selecting Striker...'}</span>
                     </div>
                     <div className="flex items-baseline gap-2">
                        <span className="text-3xl font-chakra font-black text-blue-700">{striker?.runs_scored || 0}</span>
@@ -350,7 +369,7 @@ export default function ScoreboardOverlayPage() {
                   </div>
                   <div className="flex justify-between items-center opacity-60 grayscale-[0.5]">
                     <div className="flex items-center gap-3 pl-5">
-                       <span className="text-lg font-outfit font-bold text-slate-600 max-w-[180px] truncate uppercase">{nonStriker?.player_name || 'Batsman 2'}</span>
+                       <span className="text-lg font-outfit font-bold text-slate-600 max-w-[180px] truncate uppercase">{nonStriker?.player_name || 'Non-Striker...'}</span>
                     </div>
                     <div className="flex items-baseline gap-1.5">
                        <span className="text-xl font-chakra font-black text-slate-700">{nonStriker?.runs_scored || 0}</span>
@@ -429,42 +448,46 @@ export default function ScoreboardOverlayPage() {
              </AnimatePresence>
           </div>
 
-        </div>
-      </div>
+          </div>
+        </motion.div>
+       )}
+      </AnimatePresence>
 
       {/* ── FULL SCREEN / SIDE OVERLAYS (PLAYING XI, MATCH INFO) ── */}
       <AnimatePresence>
         {playing11Team && (
           <motion.div
             initial={{ x: -100, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -100, opacity: 0 }}
-            className="fixed top-12 left-12 w-[600px] z-50 origin-top-left scale-[0.4] sm:scale-75 md:scale-90 lg:scale-100"
+            className="fixed inset-0 z-50 flex items-start justify-start p-12 pointer-events-none"
           >
-            <div className="bg-white rounded-3xl shadow-tv overflow-hidden border-[6px] border-white">
-               <div className="h-40 relative flex items-center px-12" style={{ backgroundColor: playing11Team.primary_color || '#1e293b' }}>
-                  <div className="absolute inset-0 bg-gradient-to-r from-black/50 to-transparent" />
-                  <div className="relative z-10 flex items-center gap-8">
-                     {playing11Team.logo_url && <img src={playing11Team.logo_url} className="w-24 h-24 rounded-2xl bg-white shadow-2xl p-2 border-4 border-white/20" />}
-                     <div>
-                        <h1 className="text-5xl font-chakra font-black text-white tracking-widest uppercase m-0 leading-none">{playing11Team.short_name || 'XI'}</h1>
-                        <p className="text-white/60 font-outfit uppercase font-black tracking-[0.4em] m-0 mt-2">Playing Eleven</p>
-                     </div>
-                  </div>
-               </div>
-               <div className="p-8 space-y-2 grid grid-cols-2 gap-x-12">
-                  {playing11Players.slice(0, 11).map((player, idx) => (
-                    <motion.div
-                      key={player.id} initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: idx * 0.05 }}
-                      className="group flex items-center justify-between p-3 rounded-2xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all"
-                    >
-                       <div className="flex items-center gap-4">
-                          <span className="w-6 text-2xl font-chakra font-black text-blue-500/30 group-hover:text-blue-500">{idx + 1}</span>
-                          <span className="text-xl font-outfit font-black text-slate-800 uppercase tracking-tight">{player.name}</span>
+            <div className="w-[600px] origin-top-left scale-[0.4] sm:scale-75 md:scale-90 min-[1200px]:scale-100">
+              <div className="bg-white rounded-3xl shadow-tv overflow-hidden border-[6px] border-white">
+                 <div className="h-40 relative flex items-center px-12" style={{ backgroundColor: playing11Team.primary_color || '#1e293b' }}>
+                    <div className="absolute inset-0 bg-gradient-to-r from-black/50 to-transparent" />
+                    <div className="relative z-10 flex items-center gap-8">
+                       {playing11Team.logo_url && <img src={playing11Team.logo_url} className="w-24 h-24 rounded-2xl bg-white shadow-2xl p-2 border-4 border-white/20" />}
+                       <div>
+                          <h1 className="text-5xl font-chakra font-black text-white tracking-widest uppercase m-0 leading-none">{playing11Team.short_name || 'XI'}</h1>
+                          <p className="text-white/60 font-outfit uppercase font-black tracking-[0.4em] m-0 mt-2">Playing Eleven</p>
                        </div>
-                       {player.is_captain && <span className="text-[10px] bg-amber-400 font-extrabold px-2 py-0.5 rounded-lg border border-amber-500 shadow-sm">CPT</span>}
-                    </motion.div>
-                  ))}
-               </div>
-               <div className="h-4 w-full" style={{ background: `linear-gradient(90deg, ${playing11Team.primary_color}, ${playing11Team.secondary_color})` }} />
+                    </div>
+                 </div>
+                 <div className="p-8 space-y-2 grid grid-cols-2 gap-x-12">
+                    {playing11Players.slice(0, 11).map((player, idx) => (
+                      <motion.div
+                        key={player.id} initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: idx * 0.05 }}
+                        className="group flex items-center justify-between p-3 rounded-2xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all"
+                      >
+                         <div className="flex items-center gap-4">
+                            <span className="w-6 text-2xl font-chakra font-black text-blue-500/30 group-hover:text-blue-500">{idx + 1}</span>
+                            <span className="text-xl font-outfit font-black text-slate-800 uppercase tracking-tight">{player.name}</span>
+                         </div>
+                         {player.is_captain && <span className="text-[10px] bg-amber-400 font-extrabold px-2 py-0.5 rounded-lg border border-amber-500 shadow-sm">CPT</span>}
+                      </motion.div>
+                    ))}
+                 </div>
+                 <div className="h-4 w-full" style={{ background: `linear-gradient(90deg, ${playing11Team.primary_color}, ${playing11Team.secondary_color})` }} />
+              </div>
             </div>
           </motion.div>
         )}
@@ -477,36 +500,37 @@ export default function ScoreboardOverlayPage() {
             initial={{ opacity: 0, scale: 0.9, y: 50 }} 
             animate={{ opacity: 1, scale: 1, y: 0 }} 
             exit={{ opacity: 0, scale: 1.1, y: 30 }}
-            className="fixed top-24 left-1/2 -translate-x-1/2 w-[800px] z-50 origin-top scale-[0.4] sm:scale-75 md:scale-100"
+            className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
           >
-             <div className="bg-slate-900 rounded-[40px] shadow-tv border-[8px] border-white overflow-hidden p-1">
-                <div className="bg-slate-900 p-12 text-center relative">
-                   <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent" />
-                   <div className="text-blue-400 font-outfit text-sm font-black tracking-[0.6em] uppercase mb-4">Official Match Details</div>
-                   <h2 className="text-6xl font-chakra font-black text-white uppercase tracking-tighter mb-12 flex justify-center items-center gap-8">
-                     {match.team1?.short_name} <span className="text-blue-600 text-3xl">VS</span> {match.team2?.short_name}
-                   </h2>
-                   
-                   <div className="grid grid-cols-3 gap-8 text-center bg-white/5 backdrop-blur-md rounded-3xl p-8 border border-white/10">
-                      <div>
-                         <div className="text-blue-500/60 font-black text-[10px] uppercase tracking-widest mb-2">Venue</div>
-                         <div className="text-white text-2xl font-bold">{match.venue || 'International Stadium'}</div>
-                      </div>
-                      <div className="border-x border-white/10">
-                         <div className="text-amber-500/60 font-black text-[10px] uppercase tracking-widest mb-2">Toss Info</div>
-                         <div className="text-amber-400 text-2xl font-bold">{match.toss_text || 'Decision Pending'}</div>
-                      </div>
-                      <div>
-                         <div className="text-emerald-500/60 font-black text-[10px] uppercase tracking-widest mb-2">Current Status</div>
-                         <div className="text-emerald-400 text-2xl font-bold uppercase tracking-tight">{match.status?.replace('_', ' ')}</div>
-                      </div>
-                   </div>
-                </div>
+             <div className="w-[800px] origin-center scale-[0.4] sm:scale-75 md:scale-100">
+               <div className="bg-slate-900 rounded-[40px] shadow-tv border-[8px] border-white overflow-hidden p-1">
+                  <div className="bg-slate-900 p-12 text-center relative">
+                     <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent" />
+                     <div className="text-blue-400 font-outfit text-sm font-black tracking-[0.6em] uppercase mb-4">Official Match Details</div>
+                     <h2 className="text-6xl font-chakra font-black text-white uppercase tracking-tighter mb-12 flex justify-center items-center gap-8">
+                       {match.team1?.short_name} <span className="text-blue-600 text-3xl">VS</span> {match.team2?.short_name}
+                     </h2>
+                     
+                     <div className="grid grid-cols-3 gap-8 text-center bg-white/5 backdrop-blur-md rounded-3xl p-8 border border-white/10">
+                        <div>
+                           <div className="text-blue-500/60 font-black text-[10px] uppercase tracking-widest mb-2">Venue</div>
+                           <div className="text-white text-2xl font-bold">{match.venue || 'International Stadium'}</div>
+                        </div>
+                        <div className="border-x border-white/10">
+                           <div className="text-amber-500/60 font-black text-[10px] uppercase tracking-widest mb-2">Toss Info</div>
+                           <div className="text-amber-400 text-2xl font-bold">{match.toss_text || 'Decision Pending'}</div>
+                        </div>
+                        <div>
+                           <div className="text-emerald-500/60 font-black text-[10px] uppercase tracking-widest mb-2">Current Status</div>
+                           <div className="text-emerald-400 text-2xl font-bold uppercase tracking-tight">{match.status?.replace('_', ' ')}</div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
              </div>
           </motion.div>
         )}
       </AnimatePresence>
-
     </div>
   );
 }

@@ -291,6 +291,15 @@ export default function ScoringPage() {
 
     refreshUI(engine);
     setLoading(false);
+
+    // AUTO-PROMPT FOR OPENERS / BOWLER AT START
+    if (engine.innings.legalBalls === 0) {
+      if (!engine.striker || !engine.nonStriker) {
+        setShowNewBatsman(true);
+      } else if (!engine.currentBowler) {
+        setShowNewBowler(true);
+      }
+    }
   };
 
   const refreshUI = (engine) => {
@@ -307,6 +316,14 @@ export default function ScoringPage() {
       nonStriker: e.nonStriker ? e.getBatsmanBoard(e.nonStriker) : null,
       bowler: e.currentBowler ? e.getBowlerBoard(e.currentBowler) : null,
       currentOver: [...e.currentOverBalls],
+      innings: {
+        ...innings,
+        total_score: e.innings.totalScore,
+        total_wickets: e.innings.totalWickets,
+        total_overs: formatOvers(e.innings.legalBalls),
+        target: target
+      },
+      match: match
     };
 
     setScoreDisplay({
@@ -546,10 +563,20 @@ export default function ScoringPage() {
       player_id: player.id, player_name: player.name,
       batting_position: pos,
       is_striker: !engine.striker || engine.striker === playerId,
+      is_non_striker: !!engine.nonStriker && engine.nonStriker === playerId
+    }).then(() => {
+       // Refresh and check if more are needed
+       refreshUI(engine);
+       setShowNewBatsman(false);
+       
+       if (!engine.nonStriker) {
+         setTimeout(() => setShowNewBatsman(true), 500);
+       } else if (!engine.currentBowler) {
+         setTimeout(() => setShowNewBowler(true), 500);
+       }
     });
+
     engine.initPartnership(engine.striker, engine.nonStriker);
-    refreshUI(engine);
-    setShowNewBatsman(false);
   };
 
   const handleNewBowler = (playerId) => {
@@ -563,13 +590,18 @@ export default function ScoringPage() {
         player_id: player.id, player_name: player.name,
         bowling_position: Object.keys(engine.bowlingScorecard).length,
         is_current_bowler: true,
+      }).then(() => {
+        refreshUI(engine);
+        setShowNewBowler(false);
       });
     } else {
-      supabase.from('bowling_scorecard').update({ is_current_bowler: false }).eq('innings_id', innings.id).neq('player_id', playerId);
-      supabase.from('bowling_scorecard').update({ is_current_bowler: true }).eq('innings_id', innings.id).eq('player_id', playerId);
+      supabase.from('bowling_scorecard').update({ is_current_bowler: false }).eq('innings_id', innings.id).neq('player_id', playerId).then(() => {
+        supabase.from('bowling_scorecard').update({ is_current_bowler: true }).eq('innings_id', innings.id).eq('player_id', playerId).then(() => {
+          refreshUI(engine);
+          setShowNewBowler(false);
+        });
+      });
     }
-    refreshUI(engine);
-    setShowNewBowler(false);
   };
 
   const handleUndo = () => {
