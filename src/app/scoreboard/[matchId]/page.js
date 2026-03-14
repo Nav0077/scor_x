@@ -81,6 +81,57 @@ export default function ScoreboardOverlayPage() {
           setVisibility(prev => ({ ...prev, [element]: visible }));
         }
       })
+      .on('broadcast', { event: 'SCORE_UPDATE' }, (payload) => {
+        const data = payload.payload;
+        // Update Innings state
+        setInnings(prev => ({
+           ...prev,
+           total_score: data.score,
+           total_wickets: data.wickets,
+           total_overs: data.overs,
+           total_extras: data.extras
+        }));
+        
+        // Update local team/innings CRR if needed
+        // The display uses parseFloat(innings.total_overs) so we're good
+        
+        // Update Batsmen
+        const newBatsmen = [];
+        if (data.striker) {
+          newBatsmen.push({ 
+            ...data.striker, 
+            is_striker: true, 
+            player_name: data.striker.name, 
+            runs_scored: data.striker.runs, 
+            balls_faced: data.striker.balls 
+          });
+        }
+        if (data.nonStriker) {
+          newBatsmen.push({ 
+            ...data.nonStriker, 
+            is_non_striker: true, 
+            player_name: data.nonStriker.name, 
+            runs_scored: data.nonStriker.runs, 
+            balls_faced: data.nonStriker.balls 
+          });
+        }
+        setBatsmen(newBatsmen);
+        
+        // Update Bowler
+        if (data.bowler) {
+          setBowler({ 
+            ...data.bowler, 
+            player_name: data.bowler.name, 
+            wickets_taken: data.bowler.wickets, 
+            runs_conceded: data.bowler.runs,
+            overs_bowled: data.bowler.overs,
+            economy_rate: data.bowler.economy
+          });
+        }
+      })
+      .on('broadcast', { event: 'FLASH_EVENT' }, (payload) => {
+        triggerEvent(payload.payload.type);
+      })
       .subscribe();
 
     return () => {

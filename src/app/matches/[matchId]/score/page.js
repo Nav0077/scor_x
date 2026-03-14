@@ -296,20 +296,41 @@ export default function ScoringPage() {
   const refreshUI = (engine) => {
     const e = engine || engineRef.current;
     if (!e) return;
-    setScoreDisplay({
+    
+    const uiData = {
       score: e.innings.totalScore,
       wickets: e.innings.totalWickets,
       overs: formatOvers(e.innings.legalBalls),
       extras: e.innings.totalExtras,
+      crr: e.getCurrentRunRate(),
+      striker: e.striker ? e.getBatsmanBoard(e.striker) : null,
+      nonStriker: e.nonStriker ? e.getBatsmanBoard(e.nonStriker) : null,
+      bowler: e.currentBowler ? e.getBowlerBoard(e.currentBowler) : null,
+      currentOver: [...e.currentOverBalls],
+    };
+
+    setScoreDisplay({
+      score: uiData.score,
+      wickets: uiData.wickets,
+      overs: uiData.overs,
+      extras: uiData.extras,
     });
-    setStrikerDisplay(e.striker ? e.getBatsmanBoard(e.striker) : null);
-    setNonStrikerDisplay(e.nonStriker ? e.getBatsmanBoard(e.nonStriker) : null);
-    setBowlerDisplay(e.currentBowler ? e.getBowlerBoard(e.currentBowler) : null);
-    setCurrentOverDisplay([...e.currentOverBalls]);
+    setStrikerDisplay(uiData.striker);
+    setNonStrikerDisplay(uiData.nonStriker);
+    setBowlerDisplay(uiData.bowler);
+    setCurrentOverDisplay(uiData.currentOver);
+
     if (e.completedOvers.length > 0) {
       const last = e.completedOvers[e.completedOvers.length - 1];
       setLastOverDisplay({ runs: last.runs, balls: last.balls });
     }
+
+    // ⚡ INSTANT BROADCAST TO STREAMLABS OVERLAY
+    supabase.channel(`scoreboard-${matchId}`).send({
+      type: 'broadcast',
+      event: 'SCORE_UPDATE',
+      payload: uiData
+    });
   };
 
   const flash = (event) => {
@@ -448,8 +469,13 @@ export default function ScoringPage() {
     saveBall({ runs, extraType, extraRuns }, result).catch(console.error);
 
     // Flash events
-    if (runs === 6) flash('SIX');
-    else if (runs === 4) flash('FOUR');
+    if (runs === 6) {
+      flash('SIX');
+      supabase.channel(`scoreboard-${matchId}`).send({ type: 'broadcast', event: 'FLASH_EVENT', payload: { type: 'SIX' } });
+    } else if (runs === 4) {
+      flash('FOUR');
+      supabase.channel(`scoreboard-${matchId}`).send({ type: 'broadcast', event: 'FLASH_EVENT', payload: { type: 'FOUR' } });
+    }
 
     // Check innings end
     if (result.inningsEnded) {
@@ -497,6 +523,7 @@ export default function ScoringPage() {
     saveBall({ runs: 0, ...opts, isWicket: true }, res).catch(console.error);
     flash('WICKET');
     if (res.wicketResult && engine.innings.totalWickets < 10) {
+      supabase.channel(`scoreboard-${matchId}`).send({ type: 'broadcast', event: 'FLASH_EVENT', payload: { type: 'WICKET' } });
       const remaining = battingPlayers.filter(p =>
         !Object.values(engine.battingScorecard).some(bs => bs.id === p.id)
       );
