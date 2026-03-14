@@ -390,8 +390,4 @@ export default function ScoreboardOverlayPage() {
 
     </div>
   );
-}matePresence>
-
-    </div>
-  );
 }
