@@ -304,7 +304,7 @@ export default function ScoreboardOverlayPage() {
             initial={{ opacity: 0, y: 100 }} 
             animate={{ opacity: 1, y: 0 }} 
             exit={{ opacity: 0, y: 100 }}
-            className="fixed bottom-6 lg:bottom-12 left-1/2 -translate-x-1/2 z-40 origin-bottom transition-all duration-500 scale-[0.35] min-[400px]:scale-[0.45] min-[600px]:scale-[0.6] min-[800px]:scale-[0.75] min-[1000px]:scale-[0.85] min-[1200px]:scale-100"
+            className="fixed bottom-6 sm:bottom-12 left-1/2 -translate-x-1/2 z-40 origin-bottom scale-[0.3] min-[420px]:scale-[0.4] sm:scale-[0.55] md:scale-[0.7] lg:scale-[0.85] xl:scale-100 transition-all duration-500"
           >
             {/* Partnership / Recent Balls Small Badge */}
             <AnimatePresence>
@@ -327,52 +327,52 @@ export default function ScoreboardOverlayPage() {
               )}
             </AnimatePresence>
 
-            <div className="flex h-24 w-[1120px] premium-glass rounded-[2rem] overflow-hidden items-stretch shadow-tv border-2 border-white/30">
+            <div className="flex h-24 w-[1120px] premium-glass rounded-2xl overflow-hidden items-stretch shadow-tv">
               
               {/* TEAM SECTION */}
-              <div className="w-56 relative flex items-center px-8 slanted-team shrink-0" style={{ backgroundColor: battingTeam?.primary_color || '#1e293b' }}>
-                <div className="absolute inset-0 bg-gradient-to-tr from-black/60 to-transparent" />
-                <div className="relative z-10 flex items-center gap-5">
+              <div className="w-52 relative flex items-center px-6 slanted-team" style={{ backgroundColor: battingTeam?.primary_color || '#1e293b' }}>
+                <div className="absolute inset-0 bg-gradient-to-tr from-black/40 to-transparent" />
+                <div className="relative z-10 flex items-center gap-4">
                    {battingTeam?.logo_url ? (
-                      <img src={battingTeam.logo_url} className="w-16 h-16 rounded-full border-4 border-white shadow-2xl bg-white p-0.5" />
+                      <img src={battingTeam.logo_url} className="w-14 h-14 rounded-full border-2 border-white/50 bg-white p-1 shadow-2xl" />
                    ) : (
-                      <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center text-white font-black text-3xl border border-white/40 backdrop-blur-md">
+                      <div className="w-14 h-14 rounded-xl bg-white/20 flex items-center justify-center text-white font-black text-2xl border border-white/30 backdrop-blur-md">
                         {battingTeam?.short_name?.charAt(0)}
                       </div>
                    )}
                    <div className="flex flex-col">
-                      <span className="text-white font-chakra text-4xl leading-none drop-shadow-2xl font-black -mb-1">{battingTeam?.short_name || 'BAT'}</span>
-                      <span className="text-white/70 text-[11px] uppercase font-black tracking-[0.2em] leading-none">Innings {match.current_innings}</span>
+                      <span className="text-white font-chakra text-3xl leading-none drop-shadow-lg -mb-1">{battingTeam?.short_name || 'BAT'}</span>
+                      <span className="text-white/60 text-[10px] uppercase font-black tracking-widest leading-none">Innings {match.current_innings}</span>
                    </div>
                 </div>
               </div>
 
               {/* BATTING STATS */}
-              <div className="flex-1 px-10 flex flex-col justify-center border-r border-slate-200/30 bg-white/40 min-w-[320px]">
+              <div className="flex-1 px-8 flex flex-col justify-center border-r border-slate-200">
                 <AnimatePresence mode="wait">
                   {visibility.batsmen && (
                     <motion.div
                       key={`bats-${striker?.id}-${nonStriker?.id}`}
-                      initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }}
-                      className="space-y-1.5"
+                      initial={{ x: -10, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -10, opacity: 0 }}
+                      className="space-y-1"
                     >
                       <div className="flex justify-between items-end">
-                        <div className="flex items-center gap-4">
-                           <span className={`w-2.5 h-2.5 rounded-full ${striker ? 'bg-green-500 animate-pulse outline outline-4 outline-green-500/30 shadow-[0_0_10px_#22c55e]' : 'bg-slate-300'}`} />
-                           <span className="text-2xl font-outfit font-black text-slate-900 tracking-tight max-w-[220px] truncate uppercase">{striker?.player_name || 'Striker'}</span>
+                        <div className="flex items-center gap-3">
+                           <span className={`w-2 h-2 rounded-full ${striker ? 'bg-green-500 animate-pulse outline outline-4 outline-green-500/20' : ''}`} />
+                           <span className="text-2xl font-outfit font-black text-slate-900 tracking-tight max-w-[200px] truncate uppercase">{striker?.player_name || 'Striker'}</span>
                         </div>
                         <div className="flex items-baseline gap-2">
-                           <span className="text-4xl font-chakra font-black text-blue-700 tracking-tighter">{striker?.runs_scored || 0}</span>
-                           <span className="text-base font-black text-slate-400 italic">({striker?.balls_faced || 0})</span>
+                           <span className="text-3xl font-chakra font-black text-blue-700">{striker?.runs_scored || 0}</span>
+                           <span className="text-sm font-black text-slate-400 italic">({striker?.balls_faced || 0})</span>
                         </div>
                       </div>
-                      <div className="flex justify-between items-center opacity-70">
-                        <div className="flex items-center gap-4 pl-6 border-l-2 border-slate-200/50">
-                           <span className="text-xl font-outfit font-bold text-slate-600 max-w-[200px] truncate uppercase">{nonStriker?.player_name || 'Non-Striker'}</span>
+                      <div className="flex justify-between items-center opacity-60 grayscale-[0.5]">
+                        <div className="flex items-center gap-3 pl-5">
+                           <span className="text-lg font-outfit font-bold text-slate-600 max-w-[180px] truncate uppercase">{nonStriker?.player_name || 'Non-Striker'}</span>
                         </div>
-                        <div className="flex items-baseline gap-2">
-                           <span className="text-2xl font-chakra font-black text-slate-700">{nonStriker?.runs_scored || 0}</span>
-                           <span className="text-xs font-black text-slate-400">({nonStriker?.balls_faced || 0})</span>
+                        <div className="flex items-baseline gap-1.5">
+                           <span className="text-xl font-chakra font-black text-slate-700">{nonStriker?.runs_scored || 0}</span>
+                           <span className="text-[11px] font-black text-slate-400">({nonStriker?.balls_faced || 0})</span>
                         </div>
                       </div>
                     </motion.div>
@@ -381,33 +381,33 @@ export default function ScoreboardOverlayPage() {
               </div>
 
               {/* SCORE BOX (Raised) */}
-              <div className="w-[320px] relative flex items-center justify-center shrink-0">
+              <div className="w-80 relative flex items-center justify-center">
                 <AnimatePresence>
                   {visibility.score && (
                     <motion.div
-                      initial={{ scale: 0.8, opacity: 0, y: 30 }} animate={{ scale: 1, opacity: 1, y: 0 }}
-                      className="absolute -top-14 w-[320px] bg-white rounded-[2.5rem] shadow-[0_40px_80px_-20px_rgba(0,0,0,0.6)] overflow-hidden border-[6px] border-white ring-1 ring-slate-100"
+                      initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                      className="absolute -top-12 w-72 bg-white rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.4)] overflow-hidden border-2 border-slate-100"
                     >
-                       <div className="p-5 flex flex-col items-center">
-                          <div className="flex items-baseline gap-1 pointer-events-none mb-1">
-                             <span className="text-7xl font-chakra font-black text-slate-900 leading-none tracking-tighter">{score}</span>
-                             <span className="text-4xl font-chakra font-black text-blue-600 leading-none">/{wickets}</span>
+                       <div className="p-4 flex flex-col items-center">
+                          <div className="flex items-baseline gap-1 pointer-events-none">
+                             <span className="text-6xl font-chakra font-black text-slate-900">{score}</span>
+                             <span className="text-3xl font-chakra font-black text-blue-500">/{wickets}</span>
                           </div>
-                          <div className="flex items-center gap-6 mt-2 border-t border-slate-100 pt-3 w-full justify-center">
+                          <div className="flex items-center gap-4 mt-1 border-t border-slate-100 pt-1 w-full justify-center">
                              <div className="text-center">
-                                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1.5">Overs</div>
-                                <div className="text-3xl font-chakra font-black text-slate-800 leading-none">{overs}</div>
+                                <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Overs</div>
+                                <div className="text-2xl font-chakra font-black text-slate-700 leading-none">{overs}</div>
                              </div>
-                             <div className="w-px h-8 bg-slate-200" />
+                             <div className="w-px h-6 bg-slate-200" />
                              <div className="text-center">
-                                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1.5">CRR</div>
-                                <div className="text-3xl font-chakra font-black text-slate-800 leading-none">{crr}</div>
+                                <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">CRR</div>
+                                <div className="text-2xl font-chakra font-black text-slate-700 leading-none">{crr}</div>
                              </div>
                           </div>
                        </div>
                        {target && (
-                         <div className="bg-slate-900 text-white py-2.5 text-center text-[10px] font-outfit font-black tracking-[0.3em] uppercase px-4">
-                           Need <span className="text-amber-400 mx-1.5 text-xs">{runsNeeded}</span> Runs in <span className="text-amber-400 mx-1.5 text-xs">{ballsLeft}</span> Balls
+                         <div className="bg-black text-white py-2 text-center text-[10px] font-chakra font-black tracking-[0.2em] uppercase px-4 border-t border-white/10">
+                           Need <span className="text-amber-400 mx-1">{runsNeeded}</span> Runs in <span className="text-amber-400 mx-1">{ballsLeft}</span> Balls
                          </div>
                        )}
                     </motion.div>
@@ -416,31 +416,30 @@ export default function ScoreboardOverlayPage() {
               </div>
 
               {/* BOWLER SECTION */}
-              <div className="flex-1 px-10 flex flex-col justify-center items-end border-l border-slate-200/30 slanted-right bg-slate-50/90 min-w-[320px]">
+              <div className="flex-1 px-8 flex flex-col justify-center items-end border-l border-slate-200 slanted-right bg-slate-50/50">
                  <AnimatePresence mode="wait">
                    {visibility.bowler && (
                      <motion.div
                        key={`bowler-${bowler?.id}`}
-                       initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 20, opacity: 0 }}
-                       className="text-right space-y-1.5 w-full"
+                       initial={{ x: 10, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 10, opacity: 0 }}
+                       className="text-right space-y-1 w-full max-w-[240px]"
                      >
                        <div className="flex items-center justify-end gap-3">
-                          <span className="text-2xl font-outfit font-black text-blue-900 tracking-tight truncate uppercase leading-none">{bowler?.player_name || 'Bowler'}</span>
-                          <div className="w-2.5 h-2.5 rounded-full bg-blue-600 shadow-[0_0_10px_#2563eb] animate-pulse outline outline-4 outline-blue-600/20" />
+                          <span className="text-2xl font-outfit font-black text-blue-800 tracking-tight truncate uppercase">{bowler?.player_name || 'Bowler'}</span>
+                          <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse-soft" />
                        </div>
-                       <div className="flex justify-between items-center bg-white/95 p-2.5 rounded-2xl border border-slate-200 shadow-xl">
-                          <div className="flex flex-col items-start px-3">
-                             <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none mb-1">Overs</span>
-                             <span className="text-2xl font-chakra font-black text-slate-800 leading-none">{bowler?.overs_bowled || '0.0'}</span>
+                       <div className="flex justify-between items-center bg-white/60 p-1.5 rounded-xl border border-slate-200/50 shadow-sm">
+                          <div className="flex flex-col items-start px-2">
+                             <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">Overs</span>
+                             <span className="text-lg font-chakra font-black text-slate-700 leading-none">{bowler?.overs_bowled || '0.0'}</span>
                           </div>
-                          <div className="flex flex-col px-4 py-1.5 bg-gradient-to-br from-blue-600 to-indigo-800 rounded-xl text-white shadow-lg overflow-hidden relative">
-                             <div className="absolute top-0 right-0 w-8 h-8 bg-white/10 rounded-full -mr-4 -mt-4 blur-xl" />
-                             <span className="text-[9px] font-black text-white/60 uppercase tracking-widest leading-none mb-1 relative z-10">W-R</span>
-                             <span className="text-2xl font-chakra font-black leading-none relative z-10">{bowler?.wickets_taken || 0}-{bowler?.runs_conceded || 0}</span>
+                          <div className="flex flex-col px-2 bg-blue-600 rounded-lg text-white">
+                             <span className="text-[8px] font-black text-white/60 uppercase tracking-widest leading-none p-1">W-R</span>
+                             <span className="text-xl font-chakra font-black leading-none pb-1.5 px-2">{bowler?.wickets_taken || 0}-{bowler?.runs_conceded || 0}</span>
                           </div>
-                          <div className="flex flex-col items-end px-3">
-                             <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none mb-1">ECO</span>
-                             <span className="text-2xl font-chakra font-black text-slate-800 leading-none">{bowler?.economy_rate || '0.00'}</span>
+                          <div className="flex flex-col items-end px-2">
+                             <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-0.5">ECO</span>
+                             <span className="text-lg font-chakra font-black text-slate-700 leading-none">{bowler?.economy_rate || '0.00'}</span>
                           </div>
                        </div>
                      </motion.div>
