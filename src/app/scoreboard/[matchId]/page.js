@@ -14,12 +14,12 @@ export default function ScoreboardOverlayPage() {
   const [innings, setInnings] = useState(null);
   const [batsmen, setBatsmen] = useState([]);
   const [bowler, setBowler] = useState(null);
-  const [lastBall, setLastBall] = useState(null);
-  const [event, setEvent] = useState(null);
-
-  // Playing XI Mode States
+  // State for other broadcasts
+  const [matchInfoVisible, setMatchInfoVisible] = useState(false);
   const [playing11Team, setPlaying11Team] = useState(null);
   const [playing11Players, setPlaying11Players] = useState([]);
+  const [event, setEvent] = useState(null);
+  const [visibility, setVisibility] = useState({ batsmen: true, score: true, bowler: true });
 
   useEffect(() => {
     loadData();
@@ -41,7 +41,6 @@ export default function ScoreboardOverlayPage() {
              else if (b.is_boundary) triggerEvent('FOUR');
              else if (b.is_wicket) triggerEvent('WICKET');
           }
-          // We don't fetch data here because innings/matches updates will fire alongside this and fetch data
         }
       )
       .on('postgres_changes', { event: '*', schema: 'public', table: 'batting_scorecard', filter: `match_id=eq.${matchId}` },
@@ -55,22 +54,34 @@ export default function ScoreboardOverlayPage() {
         if (teamId === 'HIDE') {
           setPlaying11Team(null);
           setPlaying11Players([]);
+          setMatchInfoVisible(false);
           return;
         }
         
-        // Fetch team & players details
         const { data: teamData } = await supabase.from('teams').select('*').eq('id', teamId).single();
         const { data: playersData } = await supabase.from('players').select('*').eq('team_id', teamId).order('id');
         
         setPlaying11Team(teamData);
         setPlaying11Players(playersData || []);
-        
-        // Auto-hide after 25 seconds
         setTimeout(() => setPlaying11Team(null), 25000);
       })
-      .subscribe((status) => {
-         console.log('Realtime connected:', status);
-      });
+      .on('broadcast', { event: 'SHOW_MATCH_INFO' }, (payload) => {
+        if (payload.payload.show === 'HIDE') {
+           setMatchInfoVisible(false);
+        } else {
+           setMatchInfoVisible(true);
+           setTimeout(() => setMatchInfoVisible(false), 20000);
+        }
+      })
+      .on('broadcast', { event: 'TOGGLE_VISIBILITY' }, (payload) => {
+        const { element, visible } = payload.payload;
+        if (element === 'all') {
+          setVisibility({ batsmen: visible, score: visible, bowler: visible });
+        } else {
+          setVisibility(prev => ({ ...prev, [element]: visible }));
+        }
+      })
+      .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
@@ -125,13 +136,14 @@ export default function ScoreboardOverlayPage() {
   const runsNeeded = target ? Math.max(0, target - score) : null;
 
   return (
-    <div className="obs-overlay min-h-screen relative select-none overflow-hidden">
+    <div className="obs-overlay min-h-screen relative select-none overflow-hidden text-slate-800">
       {/* ── Force Body Transparency for Streamlabs/OBS ── */}
       <style dangerouslySetInnerHTML={{ __html: `
         body, html { background: transparent !important; }
         .clip-left { clip-path: polygon(0 0, 92% 0, 100% 100%, 0 100%); }
         .clip-right { clip-path: polygon(8% 0, 100% 0, 100% 100%, 0 100%); }
         .shadow-tv { box-shadow: 0 15px 35px rgba(0,0,0,0.5); }
+        .glass { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.4); }
       `}} />
 
       {/* ── Event Flash ── */}
@@ -140,16 +152,15 @@ export default function ScoreboardOverlayPage() {
           <motion.div
             initial={{ opacity: 0, scale: 0.2, y: -100 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 1.5, y: -50 }}
+            exit={{ opacity: 0, scale: 2, y: -50 }}
             transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-            className="fixed inset-0 flex items-center justify-center top-[-100px] z-50 pointer-events-none"
+            className="fixed inset-0 flex items-center justify-center top-[-100px] z-[60] pointer-events-none"
           >
-            {/* 3D Shield Background similar to user image */}
-            <div className="relative flex items-center justify-center w-[400px] h-[300px]">
-              <div className="absolute inset-0 bg-white/90 backdrop-blur-md" style={{ clipPath: 'polygon(50% 100%, 0 75%, 0 0, 100% 0, 100% 75%)' }} />
-              <div className="text-6xl sm:text-8xl font-black tracking-widest drop-shadow-2xl uppercase relative z-10 
-                  text-blue-600 [text-shadow:0_10px_0_#1e3a8a,-2px_-2px_0_#60a5fa,2px_2px_0_#60a5fa]" 
-                  style={{ WebkitTextStroke: '2px white' }}>
+            <div className="relative flex items-center justify-center w-[350px] sm:w-[500px] h-[250px] sm:h-[350px]">
+              <div className="absolute inset-0 bg-white/95 backdrop-blur-xl shadow-2xl" style={{ clipPath: 'polygon(50% 100%, 0 85%, 0 0, 100% 0, 100% 85%)' }} />
+              <div className="text-6xl sm:text-9xl font-black tracking-widest uppercase relative z-10 
+                  text-blue-700 [text-shadow:0_12px_0_#1e3a8a,-3px_-3px_0_#fff,3px_3px_0_#fff]" 
+                  style={{ WebkitTextStroke: '2px #1e40af' }}>
                 {event}
               </div>
             </div>
@@ -162,93 +173,128 @@ export default function ScoreboardOverlayPage() {
         initial={{ y: 200, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.8, ease: 'easeOut', delay: 0.2 }}
-        className="fixed bottom-2 sm:bottom-10 left-1/2 w-[1100px] -ml-[550px] shadow-tv text-slate-800 font-sans z-40 rounded-xl pointer-events-auto origin-bottom scale-[0.3] min-[400px]:scale-[0.35] sm:scale-[0.5] md:scale-75 lg:scale-90 xl:scale-100"
+        className="fixed bottom-4 sm:bottom-10 left-1/2 w-[1100px] -ml-[550px] shadow-tv text-slate-800 font-sans z-40 rounded-xl pointer-events-auto origin-bottom scale-[0.32] min-[420px]:scale-[0.4] sm:scale-[0.6] md:scale-[0.75] lg:scale-[0.9] xl:scale-100"
       >
-        <div className="flex items-stretch h-20 bg-gradient-to-b from-slate-100 to-slate-300 rounded-lg overflow-hidden border border-white/40 shadow-inner">
+        <div className="absolute -top-10 left-6 flex items-center gap-2 bg-black/40 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
+           <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+           <span className="text-[10px] font-black text-white/80 uppercase tracking-widest">Live Sync Alpha</span>
+        </div>
+        <div className="flex items-stretch h-20 bg-gradient-to-b from-slate-50 to-slate-200 rounded-lg overflow-hidden border border-white shadow-inner">
           
           {/* LEFT: Batting Team */}
-          <div className="flex-shrink-0 w-48 bg-gradient-to-b from-blue-500 to-blue-800 flex items-center px-4 clip-left z-10">
+          <div className="flex-shrink-0 w-48 bg-gradient-to-b from-sky-600 to-sky-800 flex items-center px-4 clip-left z-10">
             <div className="flex items-center gap-3">
               {battingTeam?.logo_url ? (
-                 <img src={battingTeam.logo_url} className="w-10 h-10 rounded-full border-2 border-white/80 bg-white shadow-lg" alt="logo" />
+                 <img src={battingTeam.logo_url} className="w-12 h-12 rounded-full border-2 border-white/90 bg-white shadow-lg object-contain" alt="logo" />
               ) : (
-                 <div className="w-10 h-10 rounded-full bg-blue-900 border-2 border-white/50 flex items-center justify-center text-white font-bold text-xs ring-offset-blue-800 ring-2 ring-white/20 shadow-lg">
+                 <div className="w-12 h-12 rounded-full bg-blue-900 border-2 border-white flex items-center justify-center text-white font-black text-lg shadow-lg">
                     {battingTeam?.short_name?.charAt(0) || 'B'}
                  </div>
               )}
-              <span className="text-white text-3xl font-black tracking-widest uppercase shadow-black/50 drop-shadow-md">
+              <span className="text-white text-3xl font-black tracking-widest uppercase drop-shadow-md">
                 {battingTeam?.short_name || 'IND'}
               </span>
             </div>
           </div>
 
           {/* MIDDLE LEFT: Batsmen Stats & Match Info */}
-          <div className="flex-1 flex flex-col justify-center px-4">
-            <div className="flex justify-between items-center text-[15px] font-semibold text-slate-700">
-               <div className="flex gap-2">
-                 <span className="w-40 truncate">{striker?.player_name||'Striker'}*</span>
-                 <span className="text-slate-900 font-bold w-16 text-right">
-                   {striker?.runs_scored||0} <span className="font-normal text-slate-500">({striker?.balls_faced||0})</span>
-                 </span>
-               </div>
-               {target && <div className="text-red-700 mr-12 tracking-wide text-sm font-bold">Target {target} <span className="text-slate-500 font-normal">({match.overs * 6})</span></div>}
-            </div>
-            <div className="flex justify-between items-center text-[15px] font-semibold text-slate-500">
-               <div className="flex gap-2">
-                 <span className="w-40 truncate">{nonStriker?.player_name||'Non-Striker'}</span>
-                 <span className="text-slate-700 w-16 text-right">
-                   {nonStriker?.runs_scored||0} <span className="font-normal text-slate-400">({nonStriker?.balls_faced||0})</span>
-                 </span>
-               </div>
-               <div className="mr-12 tracking-wide text-sm">CUR RR <span className="font-bold text-slate-700">{crr}</span></div>
-            </div>
+          <div className="flex-1 flex flex-col justify-center px-6">
+            <AnimatePresence>
+              {visibility.batsmen && (
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="w-full"
+                >
+                  <div className="flex justify-between items-center text-[16px] font-bold text-slate-700">
+                    <div className="flex gap-3">
+                      <span className="w-44 truncate">{striker?.player_name||'Striker'}*</span>
+                      <span className="text-slate-900 font-extrabold w-20 text-right">
+                        {striker?.runs_scored||0} <span className="font-medium text-slate-500 text-sm">({striker?.balls_faced||0})</span>
+                      </span>
+                    </div>
+                    {target && <div className="text-rose-700 mr-12 tracking-wide text-sm font-black italic">TARGET {target}</div>}
+                  </div>
+                  <div className="flex justify-between items-center text-[16px] font-bold text-slate-500">
+                    <div className="flex gap-3">
+                      <span className="w-44 truncate">{nonStriker?.player_name||'Non-Striker'}</span>
+                      <span className="text-slate-700 w-20 text-right">
+                        {nonStriker?.runs_scored||0} <span className="font-medium text-slate-400 text-sm">({nonStriker?.balls_faced||0})</span>
+                      </span>
+                    </div>
+                    <div className="mr-12 tracking-wide text-xs uppercase font-bold text-slate-400">CRR <span className="text-slate-700 font-black">{crr}</span></div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* CENTER: Raised Score Block */}
-          <div className="absolute left-1/2 -translate-x-1/2 -top-6 w-[260px] z-20">
-            <div className="bg-gradient-to-b from-slate-50 to-slate-200 rounded-xl shadow-[0_12px_24px_rgba(0,0,0,0.5)] border border-white/80 overflow-hidden backdrop-blur-md">
-              <div className="flex justify-center items-center divide-x divide-slate-300/60 py-1.5 px-2">
-                 <div className="px-5 text-[42px] font-black text-blue-700 tracking-tighter leading-none drop-shadow-sm">
-                   {score}<span className="text-[34px] text-blue-600">-{wickets}</span>
-                 </div>
-                 <div className="px-5 text-3xl font-black text-slate-600 leading-none drop-shadow-sm">
-                   {overs}
-                 </div>
-              </div>
-              {target && (
-                <div className="bg-gradient-to-b from-slate-200 to-slate-300 py-1 text-center text-[13px] text-slate-700 font-medium border-t border-white/50">
-                   Required <b className="text-slate-900 text-[14px]">{runsNeeded}</b> runs in <b className="text-slate-900 text-[14px]">{ballsLeft}</b> balls
+          <AnimatePresence>
+            {visibility.score && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.8, y: 20 }}
+                className="absolute left-1/2 -translate-x-1/2 -top-8 w-[280px] z-20"
+              >
+                <div className="bg-white rounded-2xl shadow-[0_15px_30px_rgba(0,0,0,0.6)] border-2 border-slate-200 overflow-hidden">
+                  <div className="flex justify-center items-center divide-x divide-slate-200 py-2 px-3">
+                    <div className="px-6 text-[48px] font-black text-blue-700 tracking-tighter leading-none">
+                      {score}<span className="text-[36px] text-blue-500">-{wickets}</span>
+                    </div>
+                    <div className="px-6 text-3xl font-black text-slate-600 leading-none">
+                      {overs}
+                    </div>
+                  </div>
+                  {target && (
+                    <div className="bg-slate-900 py-1.5 text-center text-[12px] text-white font-black uppercase tracking-widest border-t border-white/10">
+                      NEED <b className="text-amber-400 text-[14px] mx-1">{runsNeeded}</b> RUNS IN <b className="text-amber-400 text-[14px] mx-1">{ballsLeft}</b> BALLS
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-          {/* MIDDLE RIGHT: Bowler & Over Balls */}
-          <div className="flex-1 flex flex-col justify-center px-4 items-end pl-[140px]">
-             <div className="flex gap-4 items-center text-[15px] font-semibold text-slate-700 w-full justify-between">
-                <span className="text-red-700 w-32 truncate font-bold text-left uppercase tracking-wider">{bowler?.player_name||'Bowler'}</span>
-                <span className="text-slate-900 font-bold ml-auto text-right">
-                  {bowler?.wickets_taken||0}-{bowler?.runs_conceded||0} <span className="font-normal text-slate-500">({bowler?.economy_rate||'0.00'})</span>
-                </span>
-             </div>
-             <div className="flex gap-4 items-center text-sm font-bold text-slate-700 w-full justify-between mt-0.5 tracking-widest">
-                <span className="text-slate-500 text-xs uppercase tracking-widest font-bold">Total Ov</span>
-                <div className="flex gap-1 justify-end font-mono text-[14px]">
-                   {bowler?.overs_bowled || '0.0'}
-                </div>
-             </div>
+          {/* MIDDLE RIGHT: Bowler */}
+          <div className="flex-1 flex flex-col justify-center px-6 items-end pl-[160px]">
+             <AnimatePresence>
+               {visibility.bowler && (
+                 <motion.div
+                   initial={{ opacity: 0, x: 20 }}
+                   animate={{ opacity: 1, x: 0 }}
+                   exit={{ opacity: 0, x: 20 }}
+                   className="w-full"
+                 >
+                   <div className="flex gap-4 items-center text-[16px] font-bold text-slate-800 w-full justify-between">
+                      <span className="text-rose-700 w-36 truncate font-black uppercase tracking-wider text-left">{bowler?.player_name||'Bowler'}</span>
+                      <span className="text-slate-900 font-extrabold text-right">
+                        {bowler?.wickets_taken||0}-{bowler?.runs_conceded||0} <span className="font-medium text-slate-400 text-sm">({bowler?.economy_rate||'0.00'})</span>
+                      </span>
+                   </div>
+                   <div className="flex gap-4 items-center text-sm font-bold text-slate-400 w-full justify-between mt-1 tracking-widest">
+                      <span className="text-[10px] uppercase font-black text-slate-400">Total Overs</span>
+                      <div className="flex gap-1 justify-end font-mono text-[15px] text-slate-800 font-black">
+                         {bowler?.overs_bowled || '0.0'}
+                      </div>
+                   </div>
+                 </motion.div>
+               )}
+             </AnimatePresence>
           </div>
 
           {/* RIGHT: Bowling Team */}
-          <div className="flex-shrink-0 w-48 bg-gradient-to-b from-green-700 to-green-900 flex items-center justify-end px-4 clip-right z-10 text-right">
+          <div className="flex-shrink-0 w-48 bg-gradient-to-b from-emerald-600 to-emerald-800 flex items-center justify-end px-4 clip-right z-10 text-right">
             <div className="flex items-center gap-3">
               <span className="text-white text-3xl font-black tracking-widest uppercase shadow-black/50 drop-shadow-md">
                 {bowlingTeam?.short_name || 'PAK'}
               </span>
               {bowlingTeam?.logo_url ? (
-                 <img src={bowlingTeam.logo_url} className="w-10 h-10 rounded-full border-2 border-white/80 bg-white shadow-lg object-contain p-0.5" alt="logo" />
+                 <img src={bowlingTeam.logo_url} className="w-12 h-12 rounded-full border-2 border-white/90 bg-white shadow-lg object-contain" alt="logo" />
               ) : (
-                 <div className="w-10 h-10 rounded-full bg-green-900 border-2 border-white/50 flex items-center justify-center text-white font-bold text-xs ring-offset-green-800 ring-2 ring-white/20 shadow-lg">
+                 <div className="w-12 h-12 rounded-full bg-emerald-900 border-2 border-white flex items-center justify-center text-white font-black text-lg shadow-lg">
                     {bowlingTeam?.short_name?.charAt(0) || 'B'}
                  </div>
               )}
@@ -258,55 +304,93 @@ export default function ScoreboardOverlayPage() {
         </div>
       </motion.div>
 
-      {/* ── PLAYING 11 OVERLAY (Full Screen TV Graphic) ── */}
+      {/* ── PLAYING 11 OVERLAY (Responsive TV Graphic) ── */}
       <AnimatePresence>
         {playing11Team && (
           <motion.div
-            initial={{ opacity: 0, x: -50 }}
+            initial={{ opacity: 0, x: -100 }}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 50, transition: { duration: 0.5 } }}
-            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-            className="fixed left-16 top-16 bottom-36 w-[450px] shadow-[0_15px_40px_rgba(0,0,0,0.6)] rounded-2xl z-50 overflow-hidden flex flex-col"
+            exit={{ opacity: 0, x: -100 }}
+            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+            className="fixed left-4 sm:left-12 top-4 sm:top-12 w-[400px] sm:w-[500px] z-50 origin-top-left scale-[0.4] min-[420px]:scale-[0.5] sm:scale-75 md:scale-90 lg:scale-100"
           >
-            {/* Header / Team Intro */}
-            <div className="flex-none bg-gradient-to-br from-blue-700 to-blue-900 h-28 flex items-center px-6 relative overflow-hidden">
-               <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full transform translate-x-12 -translate-y-24" />
-               <div className="flex items-center gap-5 relative z-10 w-full">
+            <div className="glass rounded-3xl overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.5)] flex flex-col border-4 border-white/30">
+              {/* Header */}
+              <div className="bg-gradient-to-br from-blue-700 to-blue-900 h-32 flex items-center px-8 relative overflow-hidden">
+                <div className="absolute -top-12 -right-12 w-48 h-48 bg-white/10 rounded-full blur-2xl" />
+                <div className="flex items-center gap-6 relative z-10">
                   {playing11Team.logo_url && (
-                     <img src={playing11Team.logo_url} alt="Logo" className="w-16 h-16 rounded-full border-2 border-white/80 shadow-md bg-white object-contain p-1" />
+                    <img src={playing11Team.logo_url} alt="L" className="w-20 h-20 rounded-full border-4 border-white bg-white p-1 shadow-xl" />
                   )}
                   <div>
-                    <h2 className="text-white text-3xl font-black uppercase tracking-wider drop-shadow-md leading-none mb-1">{playing11Team.short_name || 'TEAM'}</h2>
-                    <h3 className="text-blue-200 text-sm font-bold uppercase tracking-widest leading-none">Playing XI</h3>
+                    <h2 className="text-white text-4xl font-black uppercase tracking-tighter drop-shadow-lg leading-none m-0">{playing11Team.name}</h2>
+                    <div className="bg-sky-400 text-sky-900 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full mt-2 inline-block">Starting Playing XI</div>
                   </div>
-               </div>
-            </div>
+                </div>
+              </div>
 
-            {/* Players List */}
-            <div className="flex-1 bg-gradient-to-b from-slate-100 to-slate-300 p-0 flex flex-col justify-start">
-               {playing11Players.map((player, idx) => (
+              {/* Player Grid */}
+              <div className="p-2 space-y-1">
+                {playing11Players.map((player, idx) => (
                   <motion.div 
-                    initial={{ opacity: 0, x: -30 }}
+                    initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.3 + (idx * 0.05), duration: 0.4 }}
+                    transition={{ delay: 0.2 + (idx * 0.04) }}
                     key={player.id} 
-                    className="flex items-center border-b border-white/50 px-6 py-2.5 odd:bg-slate-200/40"
+                    className="flex items-center px-6 py-3 rounded-xl hover:bg-blue-600/5 group transition-colors"
                   >
-                     <div className="text-slate-400 font-bold w-6">{idx + 1}</div>
-                     <div className="text-slate-800 font-bold text-[17px] uppercase tracking-wide flex-1 mr-2">{player.name}</div>
+                     <div className="text-blue-500 font-black w-8 text-sm">{idx + 1}</div>
+                     <div className="text-slate-800 font-extrabold text-xl uppercase tracking-wide flex-1">{player.name}</div>
                      {player.role && (
-                       <span className="text-[10px] uppercase tracking-widest font-black bg-blue-600/10 text-blue-700 px-2.5 py-1 rounded-sm border border-blue-600/20">
-                         {player.role.includes('Wicket') ? 'WK' : player.role.includes('All') ? 'AR' : player.role.includes('Bowler') ? 'BOWL' : 'BAT'}
+                       <span className="text-[11px] font-black bg-slate-900 text-white px-3 py-1.5 rounded-lg ml-2 shadow-sm min-w-[55px] text-center">
+                         {player.role.includes('Wicket') ? 'WK/BAT' : player.role.includes('All') ? 'ALL R' : player.role.includes('Bowler') ? 'BOWLER' : 'BATTER'}
                        </span>
                      )}
                   </motion.div>
-               ))}
+                ))}
+              </div>
+              <div className="h-4 bg-gradient-to-r from-blue-600 via-sky-400 to-blue-600" />
             </div>
-            {/* Footer Branding bg */}
-            <div className="h-2 bg-gradient-to-r from-blue-600 via-blue-400 to-blue-600 flex-none" />
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── MATCH INFO OVERLAY ── */}
+      <AnimatePresence>
+        {matchInfoVisible && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 50 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 30 }}
+            className="fixed top-12 left-1/2 -translate-x-1/2 w-[700px] z-50 origin-top scale-[0.4] sm:scale-75 md:scale-95 lg:scale-100"
+          >
+             <div className="glass rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] border-4 border-white p-1 overflow-hidden">
+                <div className="bg-slate-900 text-white p-4 text-center rounded-xl">
+                   <div className="text-[10px] uppercase tracking-[0.3em] font-black text-blue-400 mb-1">Match Information</div>
+                   <h2 className="text-3xl font-black uppercase tracking-tight">{match.team1?.name} vs {match.team2?.name}</h2>
+                   <div className="flex justify-center gap-12 mt-6 border-t border-white/10 pt-6 px-4">
+                      <div className="text-center">
+                         <div className="text-[10px] uppercase text-slate-500 font-black mb-1">Venue</div>
+                         <div className="text-base font-bold text-slate-200">{match.venue || 'TBA'}</div>
+                      </div>
+                      <div className="text-center">
+                         <div className="text-[10px] uppercase text-slate-500 font-black mb-1">Toss</div>
+                         <div className="text-base font-bold text-amber-400">{match.toss_text || 'Toss Pending'}</div>
+                      </div>
+                      <div className="text-center">
+                         <div className="text-[10px] uppercase text-slate-500 font-black mb-1">Status</div>
+                         <div className="text-base font-bold text-emerald-400 uppercase">{match.status.replace('_', ' ')}</div>
+                      </div>
+                   </div>
+                </div>
+             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+    </div>
+  );
+}matePresence>
 
     </div>
   );

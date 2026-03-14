@@ -415,6 +415,24 @@ export default function ScoringPage() {
     flash(teamId === 'HIDE' ? 'HIDDEN' : 'XI SENT');
   };
 
+  const broadcastMatchInfo = (show) => {
+    supabase.channel(`scoreboard-${matchId}`).send({
+      type: 'broadcast',
+      event: 'SHOW_MATCH_INFO',
+      payload: { show }
+    });
+    flash(show === 'HIDE' ? 'HIDDEN' : 'INFO SENT');
+  };
+
+  const broadcastVisibility = (element, visible) => {
+    supabase.channel(`scoreboard-${matchId}`).send({
+      type: 'broadcast',
+      event: 'TOGGLE_VISIBILITY',
+      payload: { element, visible }
+    });
+    flash(`${element.toUpperCase()} ${visible ? 'ON' : 'OFF'}`);
+  };
+
   // ── Handle run/extra button press ──
   const handleScore = async (runs, extraType = null, extraRuns = 0) => {
     const engine = engineRef.current;
@@ -754,19 +772,46 @@ export default function ScoringPage() {
         </div>
 
         {/* ── Overlay Controls ── */}
-        <div className="card p-3 space-y-2 border-cricket-500/30 mt-4 bg-dark-500/50">
-          <div className="text-xs text-cricket-400 font-semibold mb-1 uppercase tracking-wider text-center">Streamlabs Overlays</div>
+        <div className="card p-3 space-y-3 border-cricket-500/30 mt-4 bg-dark-500/50">
+          <div className="text-xs text-cricket-400 font-semibold mb-1 uppercase tracking-wider text-center flex items-center justify-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+            Advanced Stream Control
+          </div>
+          
           <div className="grid grid-cols-2 gap-2">
-            <button onClick={() => broadcastPlaying11(match?.team1_id)} className="btn-secondary text-xs font-bold flex items-center justify-center py-2.5 rounded-lg border border-white/10 shadow hover:bg-white/10">
-              📺 Show {match?.team1?.short_name || 'Team 1'} XI
+            <button onClick={() => broadcastPlaying11(match?.team1_id)} className="btn-secondary text-[10px] font-black py-2.5 rounded-lg border border-white/10 shadow uppercase tracking-tighter">
+              XI: {match?.team1?.short_name || 'T1'}
             </button>
-            <button onClick={() => broadcastPlaying11(match?.team2_id)} className="btn-secondary text-xs font-bold flex items-center justify-center py-2.5 rounded-lg border border-white/10 shadow hover:bg-white/10">
-              📺 Show {match?.team2?.short_name || 'Team 2'} XI
+            <button onClick={() => broadcastPlaying11(match?.team2_id)} className="btn-secondary text-[10px] font-black py-2.5 rounded-lg border border-white/10 shadow uppercase tracking-tighter">
+              XI: {match?.team2?.short_name || 'T2'}
             </button>
-            <button onClick={() => broadcastPlaying11('HIDE')} className="col-span-2 text-xs font-bold flex items-center justify-center py-2.5 rounded-lg border border-red-500/50 text-red-400 bg-red-500/10 hover:bg-red-500/20 active:scale-95 transition-all">
-              ❌ Hide All Overlays
+            <button onClick={() => broadcastMatchInfo('SHOW')} className="col-span-2 btn-primary text-xs font-black py-2.5 rounded-lg border border-white/10 shadow uppercase tracking-widest bg-blue-600 hover:bg-blue-500">
+               📺 Show Match Info / Toss
             </button>
           </div>
+
+          <div className="pt-2 border-t border-white/5 space-y-2">
+            <div className="text-[9px] text-slate-500 uppercase font-bold tracking-widest text-center">Element Visibility</div>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { id: 'batsmen', label: 'Bats' },
+                { id: 'score', label: 'Score' },
+                { id: 'bowler', label: 'Bowl' }
+              ].map(el => (
+                <div key={el.id} className="flex flex-col gap-1">
+                  <span className="text-[10px] text-center text-slate-400 font-bold">{el.label}</span>
+                  <div className="flex border border-white/10 rounded-lg overflow-hidden h-8">
+                    <button onClick={() => broadcastVisibility(el.id, true)} className="flex-1 bg-emerald-500/20 text-emerald-400 text-[10px] font-black">ON</button>
+                    <button onClick={() => broadcastVisibility(el.id, false)} className="flex-1 bg-red-500/20 text-red-400 text-[10px] font-black">OFF</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <button onClick={() => { broadcastPlaying11('HIDE'); broadcastMatchInfo('HIDE'); broadcastVisibility('all', true); }} className="w-full text-xs font-bold py-2.5 rounded-lg border border-red-500/50 text-red-400 bg-red-500/10 hover:bg-red-500/20 active:scale-95 transition-all uppercase tracking-widest">
+            ❌ Clear All Overlays
+          </button>
         </div>
 
         <div className="h-6" />
