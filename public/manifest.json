@@ -1,0 +1,21 @@
+{
+  "name": "ScorX Live Cricket Scorer",
+  "short_name": "ScorX",
+  "description": "Professional cricket scoring, real-time overlays, and tournament management.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#151d21",
+  "theme_color": "#22c55e",
+  "icons": [
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon.ico",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
