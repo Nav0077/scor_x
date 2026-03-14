@@ -304,7 +304,7 @@ export default function ScoreboardOverlayPage() {
             initial={{ opacity: 0, y: 100 }} 
             animate={{ opacity: 1, y: 0 }} 
             exit={{ opacity: 0, y: 100 }}
-            className="fixed bottom-6 sm:bottom-12 left-1/2 -translate-x-1/2 z-40 origin-bottom transition-all duration-500 scale-[0.3] min-[400px]:scale-[0.4] min-[600px]:scale-[0.55] min-[900px]:scale-[0.75] min-[1150px]:scale-100"
+            className="fixed bottom-6 lg:bottom-12 left-1/2 -translate-x-1/2 z-40 origin-bottom transition-all duration-500 scale-[0.35] min-[400px]:scale-[0.45] min-[600px]:scale-[0.6] min-[800px]:scale-[0.75] min-[1000px]:scale-[0.85] min-[1200px]:scale-100"
           >
             {/* Partnership / Recent Balls Small Badge */}
             <AnimatePresence>
@@ -460,7 +460,7 @@ export default function ScoreboardOverlayPage() {
             initial={{ x: -100, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -100, opacity: 0 }}
             className="fixed inset-0 z-50 flex items-start justify-start p-12 pointer-events-none"
           >
-            <div className="w-[600px] origin-top-left scale-[0.4] sm:scale-75 md:scale-90 min-[1200px]:scale-100">
+            <div className="w-[600px] origin-top-left scale-[0.4] min-[600px]:scale-[0.7] min-[900px]:scale-[0.85] min-[1150px]:scale-100">
               <div className="bg-white rounded-3xl shadow-tv overflow-hidden border-[6px] border-white">
                  <div className="h-40 relative flex items-center px-12" style={{ backgroundColor: playing11Team.primary_color || '#1e293b' }}>
                     <div className="absolute inset-0 bg-gradient-to-r from-black/50 to-transparent" />
@@ -502,7 +502,7 @@ export default function ScoreboardOverlayPage() {
             exit={{ opacity: 0, scale: 1.1, y: 30 }}
             className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
           >
-             <div className="w-[800px] origin-center scale-[0.4] sm:scale-75 md:scale-100">
+             <div className="w-[800px] origin-center scale-[0.4] min-[600px]:scale-[0.7] min-[900px]:scale-[0.85] min-[1150px]:scale-100">
                <div className="bg-slate-900 rounded-[40px] shadow-tv border-[8px] border-white overflow-hidden p-1">
                   <div className="bg-slate-900 p-12 text-center relative">
                      <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent" />
