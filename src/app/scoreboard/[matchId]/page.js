@@ -271,33 +271,47 @@ export default function ScoreboardOverlayPage() {
           </div>
 
           {/* MIDDLE LEFT: Batsmen Stats */}
-          <div className="flex-1 flex flex-col justify-center px-6">
+          <div className="flex-1 flex flex-col justify-center px-6 border-l border-slate-300/50">
             <AnimatePresence mode="wait">
               {visibility.batsmen && (
                 <motion.div
-                  key="batsmen-ui"
+                  key={`bats-group-${batsmen.length}-${striker?.player_id}`}
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
-                  className="w-full"
+                  className="w-full space-y-0.5"
                 >
-                  <div className="flex justify-between items-center text-[16px] font-bold text-slate-700">
-                    <div className="flex gap-3">
-                      <span className="w-44 truncate">{striker?.player_name||'Striker'}*</span>
-                      <span className="text-slate-900 font-extrabold w-20 text-right">
-                        {striker?.runs_scored||0} <span className="font-medium text-slate-500 text-sm">({striker?.balls_faced||0})</span>
+                  {/* Striker Row */}
+                  <div className="flex justify-between items-center h-8">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-1.5 h-1.5 rounded-full ${striker ? 'bg-amber-500 animate-pulse' : 'bg-transparent'}`} />
+                      <span className="text-xl font-black text-slate-800 uppercase tracking-tighter w-48 truncate">
+                        {striker?.player_name || 'Batsman 1'}
                       </span>
                     </div>
-                    {target && <div className="text-rose-700 mr-12 tracking-wide text-xs font-black italic">TARGET {target}</div>}
+                    <div className="flex items-center gap-4">
+                      {target && <div className="text-rose-700 text-[10px] font-black italic uppercase tracking-widest mr-4">Target {target}</div>}
+                      <div className="flex items-baseline gap-1 bg-slate-800 text-white px-2 py-0.5 rounded shadow-sm">
+                        <span className="text-lg font-black">{striker?.runs_scored || 0}</span>
+                        <span className="text-[10px] opacity-70">({striker?.balls_faced || 0})</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex justify-between items-center text-[16px] font-bold text-slate-500">
-                    <div className="flex gap-3">
-                      <span className="w-44 truncate">{nonStriker?.player_name||'Non-Striker'}</span>
-                      <span className="text-slate-700 w-20 text-right">
-                        {nonStriker?.runs_scored||0} <span className="font-medium text-slate-400 text-sm">({nonStriker?.balls_faced||0})</span>
+
+                  {/* Non-Striker Row */}
+                  <div className="flex justify-between items-center h-8 opacity-70">
+                    <div className="flex items-center gap-3 pl-4">
+                      <span className="text-lg font-bold text-slate-600 uppercase tracking-tight w-44 truncate">
+                        {nonStriker?.player_name || 'Batsman 2'}
                       </span>
                     </div>
-                    <div className="mr-12 tracking-wide text-[10px] uppercase font-bold text-slate-400">CRR <span className="text-slate-700 font-black">{crr}</span></div>
+                    <div className="flex items-center gap-4">
+                      <div className="text-[10px] uppercase font-bold text-slate-400 mr-4">CRR <span className="text-slate-800 font-black">{crr}</span></div>
+                      <div className="flex items-baseline gap-1 bg-slate-400/50 text-slate-800 px-2 py-0.5 rounded">
+                        <span className="text-base font-bold">{nonStriker?.runs_scored || 0}</span>
+                        <span className="text-[9px] opacity-70">({nonStriker?.balls_faced || 0})</span>
+                      </div>
+                    </div>
                   </div>
                 </motion.div>
               )}
