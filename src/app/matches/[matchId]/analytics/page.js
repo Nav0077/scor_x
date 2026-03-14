@@ -32,7 +32,7 @@ const COLORS = ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#a855f7', '#14b8a6'
 
 export default function AnalyticsPage() {
   const { matchId } = useParams();
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
   const [match, setMatch] = useState(null);
   const [balls, setBalls] = useState([]);
   const [loading, setLoading] = useState(true);

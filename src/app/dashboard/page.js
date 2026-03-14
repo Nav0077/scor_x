@@ -29,7 +29,7 @@ function StatusBadge({ status }) {
 
 export default function DashboardPage() {
   const { user, profile } = useAuth();
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
   const [stats, setStats] = useState({ teams: 0, matches: 0, live: 0, tournaments: 0 });
   const [recentMatches, setRecentMatches] = useState([]);
   const [loading, setLoading] = useState(true);

@@ -405,6 +405,16 @@ export default function ScoringPage() {
     await Promise.allSettled(syncPromises);
   }, [innings, matchId, match]);
 
+  // ── Overlay Broadcasts ──
+  const broadcastPlaying11 = (teamId) => {
+    supabase.channel(`scoreboard-${matchId}`).send({
+      type: 'broadcast',
+      event: 'SHOW_PLAYING_11',
+      payload: { teamId }
+    });
+    flash(teamId === 'HIDE' ? 'HIDDEN' : 'XI SENT');
+  };
+
   // ── Handle run/extra button press ──
   const handleScore = async (runs, extraType = null, extraRuns = 0) => {
     const engine = engineRef.current;
@@ -741,6 +751,22 @@ export default function ScoringPage() {
           <button onClick={() => engineRef.current?.manualSwapStrike() && refreshUI()} className="btn-ghost text-sm flex items-center justify-center gap-2 py-2.5 border border-white/10 rounded-xl">
             <MdSwapHoriz size={16} /> Swap Strike
           </button>
+        </div>
+
+        {/* ── Overlay Controls ── */}
+        <div className="card p-3 space-y-2 border-cricket-500/30 mt-4 bg-dark-500/50">
+          <div className="text-xs text-cricket-400 font-semibold mb-1 uppercase tracking-wider text-center">Streamlabs Overlays</div>
+          <div className="grid grid-cols-2 gap-2">
+            <button onClick={() => broadcastPlaying11(match?.team1_id)} className="btn-secondary text-xs font-bold flex items-center justify-center py-2.5 rounded-lg border border-white/10 shadow hover:bg-white/10">
+              📺 Show {match?.team1?.short_name || 'Team 1'} XI
+            </button>
+            <button onClick={() => broadcastPlaying11(match?.team2_id)} className="btn-secondary text-xs font-bold flex items-center justify-center py-2.5 rounded-lg border border-white/10 shadow hover:bg-white/10">
+              📺 Show {match?.team2?.short_name || 'Team 2'} XI
+            </button>
+            <button onClick={() => broadcastPlaying11('HIDE')} className="col-span-2 text-xs font-bold flex items-center justify-center py-2.5 rounded-lg border border-red-500/50 text-red-400 bg-red-500/10 hover:bg-red-500/20 active:scale-95 transition-all">
+              ❌ Hide All Overlays
+            </button>
+          </div>
         </div>
 
         <div className="h-6" />
