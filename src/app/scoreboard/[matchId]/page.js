@@ -43,7 +43,6 @@ export default function ScoreboardOverlayPage() {
   useEffect(() => {
     loadData();
 
-    // Real-time subscriptions for Streamlabs overlay
     const channel = supabase
       .channel(`scoreboard-${matchId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'matches', filter: `id=eq.${matchId}` },
@@ -93,7 +92,6 @@ export default function ScoreboardOverlayPage() {
       .on('broadcast', { event: 'SCORE_UPDATE' }, (payload) => {
         const data = payload.payload;
         
-        // Update Innings state instantly from broadcast
         setInnings(prev => ({
            ...prev,
            total_score: data.score,
@@ -102,10 +100,8 @@ export default function ScoreboardOverlayPage() {
            total_extras: data.extras
         }));
         
-        // Update current over dots
         if (data.currentOver) setCurrentOver(data.currentOver);
         
-        // Update Batsmen
         const newBatsmen = [];
         if (data.striker) {
           newBatsmen.push({ 
@@ -133,7 +129,6 @@ export default function ScoreboardOverlayPage() {
         }
         setBatsmen(newBatsmen);
         
-        // Update Bowler
         if (data.bowler) {
           setBowler({ 
             ...data.bowler, 
@@ -209,7 +204,6 @@ export default function ScoreboardOverlayPage() {
   const wickets    = innings.total_wickets || 0;
   const overs      = String(innings.total_overs || '0.0');
   
-  // Mathematically correct CRR calculation
   const oversParts = overs.split('.');
   const overNum = parseInt(oversParts[0]) || 0;
   const ballNum = parseInt(oversParts[1]) || 0;
@@ -219,7 +213,6 @@ export default function ScoreboardOverlayPage() {
   const battingTeam = match.team1_id === innings.batting_team_id ? match.team1 : match.team2;
   const bowlingTeam = match.team1_id === innings.bowling_team_id ? match.team1 : match.team2;
 
-  // Calculate required
   const ballsLeft = Math.max(0, (match.overs * 6) - totalLegalBalls);
   const runsNeeded = target ? Math.max(0, target - score) : null;
 
@@ -230,26 +223,14 @@ export default function ScoreboardOverlayPage() {
         body, html { background: transparent !important; margin: 0; padding: 0; overflow: hidden; }
         .font-outfit { font-family: 'Outfit', sans-serif; }
         .font-chakra { font-family: 'Chakra Petch', sans-serif; }
-        
         .premium-glass { 
           background: rgba(255, 255, 255, 0.92); 
           backdrop-filter: blur(20px) saturate(180%); 
           border: 1px solid rgba(255, 255, 255, 0.5);
           box-shadow: 0 10px 40px rgba(0,0,0,0.3);
         }
-        
-        .slanted-team {
-          clip-path: polygon(0 0, 85% 0, 100% 100%, 0% 100%);
-        }
-        
-        .slanted-right {
-          clip-path: polygon(15% 0, 100% 0, 100% 100%, 0% 100%);
-        }
-
-        .shadow-glow {
-          filter: drop-shadow(0 0 8px rgba(34, 197, 94, 0.4));
-        }
-        
+        .slanted-team { clip-path: polygon(0 0, 85% 0, 100% 100%, 0% 100%); }
+        .slanted-right { clip-path: polygon(15% 0, 100% 0, 100% 100%, 0% 100%); }
         @keyframes pulse-soft {
           0%, 100% { opacity: 1; transform: scale(1); }
           50% { opacity: 0.6; transform: scale(1.1); }
@@ -258,11 +239,12 @@ export default function ScoreboardOverlayPage() {
       `}} />
 
       {/* ── TOP BADGE (SERIES / TOURNAMENT) ── */}
-      <motion.div 
-        initial={{ y: -50 }} animate={{ y: 20 }}
-        className="fixed top-0 left-1/2 -translate-x-1/2 z-30 pointer-events-none origin-top scale-[0.5] sm:scale-75 md:scale-100"
-      >
-         <div className="flex items-center">
+      <div className="fixed top-0 left-0 right-0 flex justify-center z-30 pointer-events-none mt-6">
+        <motion.div 
+          initial={{ y: -50 }} animate={{ y: 0 }}
+          className="origin-top scale-[0.6] sm:scale-75 md:scale-100"
+        >
+          <div className="flex items-center">
             <div className="bg-slate-900 text-white px-6 py-1.5 rounded-l-full font-outfit text-xs font-black tracking-[0.3em] uppercase border-y border-l border-white/20">
                {match.tournament?.name || 'Cricket Live'}
             </div>
@@ -270,8 +252,9 @@ export default function ScoreboardOverlayPage() {
                <div className="w-2 h-2 rounded-full bg-white animate-pulse-soft" />
                LIVE
             </div>
-         </div>
-      </motion.div>
+          </div>
+        </motion.div>
+      </div>
 
       {/* ── EVENT FLASH (FULL SCREEN) ── */}
       <AnimatePresence>
@@ -283,16 +266,13 @@ export default function ScoreboardOverlayPage() {
             className="fixed inset-0 flex items-center justify-center z-[100] pointer-events-none"
           >
             <div className="relative overflow-hidden p-20 scale-[0.6] sm:scale-100">
-               <motion.div 
-                 initial={{ width: 0 }} animate={{ width: '100%' }}
-                 className="absolute inset-0 bg-blue-600 skew-x-[-20deg]" 
-               />
+               <motion.div initial={{ width: 0 }} animate={{ width: '100%' }} className="absolute inset-0 bg-blue-600 skew-x-[-20deg]" />
                <div className="relative z-10 px-20 py-10 border-8 border-white skew-x-[-20deg] bg-indigo-900 shadow-[0_0_100px_rgba(0,0,0,0.5)]">
                  <h1 className="text-[120px] font-black text-white italic tracking-tighter leading-none m-0 shadow-tv">
                    {event}
                  </h1>
                </div>
-            </div>
+             </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -304,149 +284,145 @@ export default function ScoreboardOverlayPage() {
             initial={{ opacity: 0, y: 100 }} 
             animate={{ opacity: 1, y: 0 }} 
             exit={{ opacity: 0, y: 100 }}
-            className="fixed bottom-6 sm:bottom-12 left-1/2 -translate-x-1/2 z-40 origin-bottom scale-[0.3] min-[420px]:scale-[0.4] sm:scale-[0.55] md:scale-[0.7] lg:scale-[0.85] xl:scale-100 transition-all duration-500"
+            className="fixed bottom-6 sm:bottom-10 left-0 right-0 flex justify-center z-40 pointer-events-none"
           >
-            {/* Partnership / Recent Balls Small Badge */}
-            <AnimatePresence>
-              {visibility.score && currentOver.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: -4 }}
-                  exit={{ opacity: 0, y: 10 }}
-                  className="flex justify-center mb-0"
-                >
-                  <div className="bg-black/80 backdrop-blur-xl px-10 py-1.5 rounded-t-[2.5rem] flex gap-3 border-x border-t border-white/20 shadow-2xl">
-                    {currentOver.map((b, i) => (
-                       <div key={i} className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white shadow-lg border border-white/10
-                          ${b==='W'?'bg-red-600':b==='6'?'bg-purple-600':b==='4'?'bg-blue-600':'bg-white/10'}`}>
-                         {b==='•'?'':b}
-                       </div>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <div className="flex h-24 w-[1120px] premium-glass rounded-2xl overflow-hidden items-stretch shadow-tv">
-              
-              {/* TEAM SECTION */}
-              <div className="w-52 relative flex items-center px-6 slanted-team" style={{ backgroundColor: battingTeam?.primary_color || '#1e293b' }}>
-                <div className="absolute inset-0 bg-gradient-to-tr from-black/40 to-transparent" />
-                <div className="relative z-10 flex items-center gap-4">
-                   {battingTeam?.logo_url ? (
-                      <img src={battingTeam.logo_url} className="w-14 h-14 rounded-full border-2 border-white/50 bg-white p-1 shadow-2xl" />
-                   ) : (
-                      <div className="w-14 h-14 rounded-xl bg-white/20 flex items-center justify-center text-white font-black text-2xl border border-white/30 backdrop-blur-md">
-                        {battingTeam?.short_name?.charAt(0)}
-                      </div>
-                   )}
-                   <div className="flex flex-col">
-                      <span className="text-white font-chakra text-3xl leading-none drop-shadow-lg -mb-1">{battingTeam?.short_name || 'BAT'}</span>
-                      <span className="text-white/60 text-[10px] uppercase font-black tracking-widest leading-none">Innings {match.current_innings}</span>
-                   </div>
-                </div>
-              </div>
-
-              {/* BATTING STATS */}
-              <div className="flex-1 px-8 flex flex-col justify-center border-r border-slate-200">
-                <AnimatePresence mode="wait">
-                  {visibility.batsmen && (
-                    <motion.div
-                      key={`bats-${striker?.id}-${nonStriker?.id}`}
-                      initial={{ x: -10, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -10, opacity: 0 }}
-                      className="space-y-1"
-                    >
-                      <div className="flex justify-between items-end">
-                        <div className="flex items-center gap-3">
-                           <span className={`w-2 h-2 rounded-full ${striker ? 'bg-green-500 animate-pulse outline outline-4 outline-green-500/20' : ''}`} />
-                           <span className="text-2xl font-outfit font-black text-slate-900 tracking-tight max-w-[200px] truncate uppercase">{striker?.player_name || 'Striker'}</span>
-                        </div>
-                        <div className="flex items-baseline gap-2">
-                           <span className="text-3xl font-chakra font-black text-blue-700">{striker?.runs_scored || 0}</span>
-                           <span className="text-sm font-black text-slate-400 italic">({striker?.balls_faced || 0})</span>
-                        </div>
-                      </div>
-                      <div className="flex justify-between items-center opacity-60 grayscale-[0.5]">
-                        <div className="flex items-center gap-3 pl-5">
-                           <span className="text-lg font-outfit font-bold text-slate-600 max-w-[180px] truncate uppercase">{nonStriker?.player_name || 'Non-Striker'}</span>
-                        </div>
-                        <div className="flex items-baseline gap-1.5">
-                           <span className="text-xl font-chakra font-black text-slate-700">{nonStriker?.runs_scored || 0}</span>
-                           <span className="text-[11px] font-black text-slate-400">({nonStriker?.balls_faced || 0})</span>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-
-              {/* SCORE BOX (Raised) */}
-              <div className="w-80 relative flex items-center justify-center">
-                <AnimatePresence>
-                  {visibility.score && (
-                    <motion.div
-                      initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-                      className="absolute -top-12 w-72 bg-white rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.4)] overflow-hidden border-2 border-slate-100"
-                    >
-                       <div className="p-4 flex flex-col items-center">
-                          <div className="flex items-baseline gap-1 pointer-events-none">
-                             <span className="text-6xl font-chakra font-black text-slate-900">{score}</span>
-                             <span className="text-3xl font-chakra font-black text-blue-500">/{wickets}</span>
-                          </div>
-                          <div className="flex items-center gap-4 mt-1 border-t border-slate-100 pt-1 w-full justify-center">
-                             <div className="text-center">
-                                <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Overs</div>
-                                <div className="text-2xl font-chakra font-black text-slate-700 leading-none">{overs}</div>
-                             </div>
-                             <div className="w-px h-6 bg-slate-200" />
-                             <div className="text-center">
-                                <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">CRR</div>
-                                <div className="text-2xl font-chakra font-black text-slate-700 leading-none">{crr}</div>
-                             </div>
-                          </div>
-                       </div>
-                       {target && (
-                         <div className="bg-black text-white py-2 text-center text-[10px] font-chakra font-black tracking-[0.2em] uppercase px-4 border-t border-white/10">
-                           Need <span className="text-amber-400 mx-1">{runsNeeded}</span> Runs in <span className="text-amber-400 mx-1">{ballsLeft}</span> Balls
+            <div className="origin-bottom scale-[0.35] min-[480px]:scale-[0.45] sm:scale-[0.6] md:scale-[0.75] lg:scale-[0.9] xl:scale-100 transition-all duration-500">
+              <AnimatePresence>
+                {visibility.score && currentOver.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: -4 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    className="flex justify-center mb-0"
+                  >
+                    <div className="bg-black/80 backdrop-blur-xl px-10 py-1.5 rounded-t-[2.5rem] flex gap-3 border-x border-t border-white/20 shadow-2xl">
+                      {currentOver.map((b, i) => (
+                         <div key={i} className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white shadow-lg border border-white/10
+                            ${b==='W'?'bg-red-600':b==='6'?'bg-purple-600':b==='4'?'bg-blue-600':'bg-white/10'}`}>
+                           {b==='•'?'':b}
                          </div>
-                       )}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
-              {/* BOWLER SECTION */}
-              <div className="flex-1 px-8 flex flex-col justify-center items-end border-l border-slate-200 slanted-right bg-slate-50/50">
-                 <AnimatePresence mode="wait">
-                   {visibility.bowler && (
-                     <motion.div
-                       key={`bowler-${bowler?.id}`}
-                       initial={{ x: 10, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 10, opacity: 0 }}
-                       className="text-right space-y-1 w-full max-w-[240px]"
-                     >
-                       <div className="flex items-center justify-end gap-3">
-                          <span className="text-2xl font-outfit font-black text-blue-800 tracking-tight truncate uppercase">{bowler?.player_name || 'Bowler'}</span>
-                          <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse-soft" />
-                       </div>
-                       <div className="flex justify-between items-center bg-white/60 p-1.5 rounded-xl border border-slate-200/50 shadow-sm">
-                          <div className="flex flex-col items-start px-2">
-                             <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">Overs</span>
-                             <span className="text-lg font-chakra font-black text-slate-700 leading-none">{bowler?.overs_bowled || '0.0'}</span>
-                          </div>
-                          <div className="flex flex-col px-2 bg-blue-600 rounded-lg text-white">
-                             <span className="text-[8px] font-black text-white/60 uppercase tracking-widest leading-none p-1">W-R</span>
-                             <span className="text-xl font-chakra font-black leading-none pb-1.5 px-2">{bowler?.wickets_taken || 0}-{bowler?.runs_conceded || 0}</span>
-                          </div>
-                          <div className="flex flex-col items-end px-2">
-                             <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-0.5">ECO</span>
-                             <span className="text-lg font-chakra font-black text-slate-700 leading-none">{bowler?.economy_rate || '0.00'}</span>
-                          </div>
-                       </div>
-                     </motion.div>
-                   )}
-                 </AnimatePresence>
-              </div>
+              <div className="flex h-24 w-[1120px] premium-glass rounded-2xl overflow-hidden items-stretch shadow-tv">
+                <div className="w-52 relative flex items-center px-6 slanted-team" style={{ backgroundColor: battingTeam?.primary_color || '#1e293b' }}>
+                  <div className="absolute inset-0 bg-gradient-to-tr from-black/40 to-transparent" />
+                  <div className="relative z-10 flex items-center gap-4">
+                     {battingTeam?.logo_url ? (
+                        <img src={battingTeam.logo_url} className="w-14 h-14 rounded-full border-2 border-white/50 bg-white p-1 shadow-2xl" />
+                     ) : (
+                        <div className="w-14 h-14 rounded-xl bg-white/20 flex items-center justify-center text-white font-black text-2xl border border-white/30 backdrop-blur-md">
+                          {battingTeam?.short_name?.charAt(0)}
+                        </div>
+                     )}
+                     <div className="flex flex-col">
+                        <span className="text-white font-chakra text-3xl leading-none drop-shadow-lg -mb-1">{battingTeam?.short_name || 'BAT'}</span>
+                        <span className="text-white/60 text-[10px] uppercase font-black tracking-widest leading-none">Innings {match.current_innings}</span>
+                     </div>
+                  </div>
+                </div>
 
+                <div className="flex-1 px-8 flex flex-col justify-center border-r border-slate-200">
+                  <AnimatePresence mode="wait">
+                    {visibility.batsmen && (
+                      <motion.div
+                        key={`bats-${striker?.id}-${nonStriker?.id}`}
+                        initial={{ x: -10, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -10, opacity: 0 }}
+                        className="space-y-1"
+                      >
+                        <div className="flex justify-between items-end">
+                          <div className="flex items-center gap-3">
+                             <span className={`w-2 h-2 rounded-full ${striker ? 'bg-green-500 animate-pulse outline outline-4 outline-green-500/20' : ''}`} />
+                             <span className="text-2xl font-outfit font-black text-slate-900 tracking-tight max-w-[200px] truncate uppercase">{striker?.player_name || 'Striker'}</span>
+                          </div>
+                          <div className="flex items-baseline gap-2">
+                             <span className="text-3xl font-chakra font-black text-blue-700">{striker?.runs_scored || 0}</span>
+                             <span className="text-sm font-black text-slate-400 italic">({striker?.balls_faced || 0})</span>
+                          </div>
+                        </div>
+                        <div className="flex justify-between items-center opacity-60 grayscale-[0.5]">
+                          <div className="flex items-center gap-3 pl-5">
+                             <span className="text-lg font-outfit font-bold text-slate-600 max-w-[180px] truncate uppercase">{nonStriker?.player_name || 'Non-Striker'}</span>
+                          </div>
+                          <div className="flex items-baseline gap-1.5">
+                             <span className="text-xl font-chakra font-black text-slate-700">{nonStriker?.runs_scored || 0}</span>
+                             <span className="text-[11px] font-black text-slate-400">({nonStriker?.balls_faced || 0})</span>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                <div className="w-80 relative flex items-center justify-center">
+                  <AnimatePresence>
+                    {visibility.score && (
+                      <motion.div
+                        initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                        className="absolute -top-12 w-72 bg-white rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.4)] overflow-hidden border-2 border-slate-100"
+                      >
+                         <div className="p-4 flex flex-col items-center">
+                            <div className="flex items-baseline gap-1 pointer-events-none">
+                               <span className="text-6xl font-chakra font-black text-slate-900">{score}</span>
+                               <span className="text-3xl font-chakra font-black text-blue-500">/{wickets}</span>
+                            </div>
+                            <div className="flex items-center gap-4 mt-1 border-t border-slate-100 pt-1 w-full justify-center">
+                               <div className="text-center">
+                                  <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Overs</div>
+                                  <div className="text-2xl font-chakra font-black text-slate-700 leading-none">{overs}</div>
+                               </div>
+                               <div className="w-px h-6 bg-slate-200" />
+                               <div className="text-center">
+                                  <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">CRR</div>
+                                  <div className="text-2xl font-chakra font-black text-slate-700 leading-none">{crr}</div>
+                               </div>
+                            </div>
+                         </div>
+                         {target && (
+                           <div className="bg-black text-white py-2 text-center text-[10px] font-chakra font-black tracking-[0.2em] uppercase px-4 border-t border-white/10">
+                             Need <span className="text-amber-400 mx-1">{runsNeeded}</span> Runs in <span className="text-amber-400 mx-1">{ballsLeft}</span> Balls
+                           </div>
+                         )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                <div className="flex-1 px-8 flex flex-col justify-center items-end border-l border-slate-200 slanted-right bg-slate-50/50">
+                   <AnimatePresence mode="wait">
+                     {visibility.bowler && (
+                       <motion.div
+                         key={`bowler-${bowler?.id}`}
+                         initial={{ x: 10, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 10, opacity: 0 }}
+                         className="text-right space-y-1 w-full max-w-[240px]"
+                       >
+                         <div className="flex items-center justify-end gap-3">
+                            <span className="text-2xl font-outfit font-black text-blue-800 tracking-tight truncate uppercase">{bowler?.player_name || 'Bowler'}</span>
+                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse-soft" />
+                         </div>
+                         <div className="flex justify-between items-center bg-white/60 p-1.5 rounded-xl border border-slate-200/50 shadow-sm">
+                            <div className="flex flex-col items-start px-2">
+                               <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">Overs</span>
+                               <span className="text-lg font-chakra font-black text-slate-700 leading-none">{bowler?.overs_bowled || '0.0'}</span>
+                            </div>
+                            <div className="flex flex-col px-2 bg-blue-600 rounded-lg text-white">
+                               <span className="text-[8px] font-black text-white/60 uppercase tracking-widest leading-none p-1">W-R</span>
+                               <span className="text-xl font-chakra font-black leading-none pb-1.5 px-2">{bowler?.wickets_taken || 0}-{bowler?.runs_conceded || 0}</span>
+                            </div>
+                            <div className="flex flex-col items-end px-2">
+                               <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-0.5">ECO</span>
+                               <span className="text-lg font-chakra font-black text-slate-700 leading-none">{bowler?.economy_rate || '0.00'}</span>
+                            </div>
+                         </div>
+                       </motion.div>
+                     )}
+                   </AnimatePresence>
+                </div>
+
+              </div>
             </div>
           </motion.div>
         )}
